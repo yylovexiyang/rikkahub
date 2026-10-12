@@ -44,7 +44,30 @@ data class Assistant(
     val enableTimeReminder: Boolean = false,            // 时间间隔提醒注入
     val allowConversationSystemPrompt: Boolean = false, // 允许对话单独重写 system prompt
     val allowConversationPromptInjection: Boolean = false, // 允许对话单独绑定提示词注入
+    val outlineConfig: OutlineConfig = OutlineConfig(), // 大纲功能配置（助手级）
 )
+
+/**
+ * 大纲功能配置（助手级单配置）
+ *
+ * 大纲开启后，用户点击发送先拦截生成大纲草稿；用户确认后，
+ * 大纲原文直接作为用户消息进入上下文；原始输入仅用于生成大纲，
+ * 写入消息元数据（见 utils/OutlineUtils.kt），不会作为上下文发送。
+ */
+@Serializable
+data class OutlineConfig(
+    val enabled: Boolean = false,                // 总开关
+    val prompt: String = DEFAULT_OUTLINE_PROMPT, // 大纲生成提示词模板
+    val modelId: Uuid? = null,                   // 大纲生成专用模型，null = 跟随当前聊天模型
+) {
+    companion object {
+        /**
+         * 默认大纲生成提示词
+         * 占位符：{input}=用户原始输入 {locale}=系统语言（经 applyPlaceholders 渲染）
+         */
+        const val DEFAULT_OUTLINE_PROMPT = "请先不要直接完成任务，而是基于对话上下文与语言环境（{locale}），针对以下需求制定一份条目清晰的大纲：\n{input}\n\n要求：只输出大纲本身，按编号条目组织，涵盖任务的关键步骤/章节，简明扼要。"
+    }
+}
 
 @Serializable
 data class QuickMessage(
