@@ -7,6 +7,7 @@ import me.rerere.ai.provider.CustomBody
 import me.rerere.ai.provider.CustomHeader
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.core.ReasoningLevel
+import me.rerere.rikkahub.data.ai.prompts.DEFAULT_OUTLINE_PROMPT
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import kotlin.uuid.Uuid
 
@@ -59,15 +60,7 @@ data class OutlineConfig(
     val enabled: Boolean = false,                // 总开关
     val prompt: String = DEFAULT_OUTLINE_PROMPT, // 大纲生成提示词模板
     val modelId: Uuid? = null,                   // 大纲生成专用模型，null = 跟随当前聊天模型
-) {
-    companion object {
-        /**
-         * 默认大纲生成提示词
-         * 占位符：{input}=用户原始输入 {locale}=系统语言（经 applyPlaceholders 渲染）
-         */
-        const val DEFAULT_OUTLINE_PROMPT = "请先不要直接完成任务，而是基于对话上下文与语言环境（{locale}），针对以下需求制定一份条目清晰的大纲：\n{input}\n\n要求：只输出大纲本身，按编号条目组织，涵盖任务的关键步骤/章节，简明扼要。"
-    }
-}
+)
 
 @Serializable
 data class QuickMessage(
