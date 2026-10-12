@@ -186,8 +186,8 @@ class ChatVM(
         outlineOriginalInput: String? = null,
     ) {
         if (content.isEmptyInputMessage()) return
-        // 大纲流程单独埋点，便于区分使用量
-        if (outlineOriginalInput != null) {
+        // 大纲流程单独埋点，口径与元数据写入（isNullOrBlank）保持一致
+        if (!outlineOriginalInput.isNullOrBlank()) {
             analytics.logEvent("ai_send_outline_message", null)
         } else {
             analytics.logEvent("ai_send_message", null)
