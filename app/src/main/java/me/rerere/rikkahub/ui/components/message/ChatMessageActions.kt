@@ -41,6 +41,7 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Clipboard
 import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Edit01
@@ -61,6 +62,7 @@ import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalTTSState
 import me.rerere.rikkahub.utils.copyMessageToClipboard
 import me.rerere.rikkahub.utils.extractQuotedContentAsText
+import me.rerere.rikkahub.utils.readOutlineOriginalInput
 import me.rerere.rikkahub.utils.toLocalString
 import java.util.Locale
 
@@ -91,6 +93,30 @@ fun ColumnScope.ChatMessageActionButtons(
         itemVerticalAlignment = Alignment.CenterVertically,
     ) {
         val actionIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+
+        // 大纲消息：提供查看原始输入入口（原始输入存于文本部件元数据）
+        var showOriginalInputDialog by remember { mutableStateOf(false) }
+        val outlineOriginalInput = message.parts
+            .filterIsInstance<UIMessagePart.Text>()
+            .firstNotNullOfOrNull { it.readOutlineOriginalInput() }
+        if (message.role == MessageRole.USER && outlineOriginalInput != null) {
+            Icon(
+                imageVector = HugeIcons.Clipboard,
+                contentDescription = stringResource(R.string.chat_message_view_original_input),
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable { showOriginalInputDialog = true }
+                    .padding(8.dp)
+                    .size(16.dp),
+                tint = actionIconColor
+            )
+        }
+        if (showOriginalInputDialog && outlineOriginalInput != null) {
+            OriginalInputDialog(
+                text = outlineOriginalInput,
+                onDismiss = { showOriginalInputDialog = false },
+            )
+        }
 
         Icon(
             imageVector = HugeIcons.Copy01,
