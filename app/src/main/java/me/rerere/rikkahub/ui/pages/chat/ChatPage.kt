@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -249,6 +250,11 @@ private fun ChatPageContent(
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
     var previewMode by rememberSaveable { mutableStateOf(false) }
+    // 大纲编辑弹层开关
+    var showOutlineSheet by remember { mutableStateOf(false) }
+
+    // 当前会话的大纲生成状态
+    val outlineSheetState by vm.outlineState.collectAsStateWithLifecycle()
     val hazeState = rememberHazeState()
 
     TTSAutoPlay(vm = vm, setting = setting, conversation = conversation)
@@ -302,13 +308,18 @@ private fun ChatPageContent(
                                 parts = inputState.getContents(),
                                 messageId = inputState.editingMessage!!,
                             )
+                            inputState.clearInput()
+                        } else if (setting.getCurrentAssistant().outlineConfig.enabled) {
+                            // 大纲功能开启：拦截发送，先弹大纲界面生成初稿；输入框内容保留，确认后统一清空
+                            showOutlineSheet = true
+                            vm.generateOutline(rawInput = inputState.textContent.text.toString())
                         } else {
                             vm.handleMessageSend(inputState.getContents())
                             scope.launch {
                                 chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
                             }
+                            inputState.clearInput()
                         }
-                        inputState.clearInput()
                     },
                     onLongSendClick = {
                         if (inputState.isEditing()) {
@@ -434,6 +445,36 @@ private fun ChatPageContent(
                 },
             )
         }
+    }
+
+    // 大纲编辑弹层
+    if (showOutlineSheet) {
+        OutlineSheet(
+            state = outlineSheetState,
+            onDismiss = {
+                // 取消：停止生成、丢弃草稿；输入框原文保留
+                showOutlineSheet = false
+                vm.stopOutlineGeneration()
+            },
+            onRegenerate = { rawInput ->
+                vm.generateOutline(rawInput)
+            },
+            onStop = {
+                vm.stopOutlineGeneration()
+            },
+            onConfirm = { draft, rawInput ->
+                showOutlineSheet = false
+                // 大纲原文作为用户消息进入上下文；原始输入写入消息元数据
+                vm.handleMessageSend(
+                    content = listOf(UIMessagePart.Text(draft)),
+                    outlineOriginalInput = rawInput,
+                )
+                inputState.clearInput()
+                scope.launch {
+                    chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
+                }
+            },
+        )
     }
 }
 
