@@ -310,7 +310,9 @@ private fun ChatPageContent(
                             )
                             inputState.clearInput()
                         } else if (setting.getCurrentAssistant().outlineConfig.enabled &&
-                            inputState.textContent.text.isNotBlank()
+                            inputState.textContent.text.isNotBlank() &&
+                            // 携带附件的消息不走大纲流程（大纲确认只发送大纲文本，附件会丢失）
+                            inputState.messageContent.isEmpty()
                         ) {
                             // 大纲功能开启且输入非空：拦截发送，先弹大纲界面生成初稿；输入框内容保留，确认后统一清空
                             showOutlineSheet = true
