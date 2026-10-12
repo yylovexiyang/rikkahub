@@ -95,6 +95,7 @@ import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.ArrowUp02
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.FullScreen
+import me.rerere.hugeicons.stroke.Menu03
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.mcp.McpManager
@@ -107,6 +108,7 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.QuickMessage
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
+import me.rerere.rikkahub.ui.components.ui.ToggleSurface
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionRecordAudio
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
@@ -450,6 +452,27 @@ fun ChatInput(
                                     onlyIcon = true,
                                 )
                             }
+
+                            // 大纲开关（stringResource 需在 composable 上下文解析，供 toast 使用）
+                            val outlineEnabledMsg = stringResource(R.string.chat_input_outline_enabled)
+                            val outlineDisabledMsg = stringResource(R.string.chat_input_outline_disabled)
+                            OutlineToggle(
+                                enabled = assistant.outlineConfig.enabled,
+                                onToggle = { enabled ->
+                                    onUpdateAssistant(
+                                        assistant.copy(
+                                            outlineConfig = assistant.outlineConfig.copy(
+                                                enabled = enabled
+                                            )
+                                        )
+                                    )
+                                    toaster.show(
+                                        message = if (enabled) outlineEnabledMsg else outlineDisabledMsg,
+                                        duration = 1.seconds,
+                                        type = if (enabled) ToastType.Success else ToastType.Normal
+                                    )
+                                },
+                            )
 
                         }
 
@@ -855,6 +878,38 @@ private fun FullScreenEditor(
                         ),
                     )
                 }
+            }
+        }
+    }
+}
+
+/**
+ * 大纲功能切换按钮（仿 ReasoningButton 的 ToggleSurface 形态）
+ */
+@Composable
+private fun OutlineToggle(
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    onToggle: (Boolean) -> Unit,
+) {
+    ToggleSurface(
+        checked = enabled,
+        onClick = { onToggle(!enabled) },
+        modifier = modifier,
+    ) {
+        Row(
+            modifier = Modifier.padding(vertical = 8.dp, horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier.size(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = HugeIcons.Menu03,
+                    contentDescription = stringResource(R.string.chat_input_outline),
+                )
             }
         }
     }
