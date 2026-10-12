@@ -44,14 +44,14 @@ fun OriginalInputDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    // 复制原始输入到剪贴板后提示并关闭对话框
+                    // 写入剪贴板并提示完成后再关闭，避免协程随组合离开被取消
                     scope.launch {
                         clipboard.setClipEntry(
                             ClipEntry(ClipData.newPlainText(null, text))
                         )
+                        toaster.show(message = copiedText)
+                        onDismiss()
                     }
-                    toaster.show(message = copiedText)
-                    onDismiss()
                 }
             ) {
                 Text(stringResource(R.string.copy))
