@@ -1102,5 +1102,29 @@
   <string name="setting_model_page_prompt_suggestion">Chat Reply Suggestions</string>
   <string name="setting_model_page_prompt_ocr">OCR Recognition</string>
   <string name="setting_model_page_prompt_compress">Context Compression</string>
+
+  <!-- ===== 大纲功能（outline feature）===== -->
+  <string name="error_title_generate_outline">Generate outline failed</string>
+  <string name="chat_input_outline">Outline</string>
+  <string name="chat_input_outline_enabled">Outline flow enabled</string>
+  <string name="chat_input_outline_disabled">Outline flow disabled</string>
+  <string name="outline_sheet_title">Outline</string>
+  <string name="outline_sheet_original_input">Original input</string>
+  <string name="outline_sheet_draft">Outline draft</string>
+  <string name="outline_sheet_generating">Generating outline...</string>
+  <string name="outline_sheet_regenerate">Regenerate</string>
+  <string name="outline_sheet_confirm">Confirm</string>
+  <string name="outline_sheet_retry">Retry</string>
+  <string name="outline_sheet_error_prefix">Generate failed:</string>
+  <string name="chat_message_view_original_input">View original input</string>
+  <string name="copied_to_clipboard">Copied to clipboard</string>
+  <string name="assistant_outline">Outline</string>
+  <string name="assistant_detail_outline_desc">Outline-first generation flow for this assistant</string>
+  <string name="assistant_outline_enable">Enable outline flow</string>
+  <string name="assistant_outline_enable_desc">When enabled, sending a message first generates an outline to confirm before the final response</string>
+  <string name="assistant_outline_prompt">Outline prompt</string>
+  <string name="assistant_outline_prompt_desc">Template for outline generation. Placeholders: {input} for raw input, {locale} for system language</string>
+  <string name="assistant_outline_model">Outline model</string>
+  <string name="assistant_outline_model_desc">Leave empty to follow the current chat model</string>
 </resources>
 
