@@ -927,6 +927,9 @@ class ChatService(
         }
 
         val job = appScope.launch {
+            // 本协程自身的 Job(与外层 launch 返回值是同一对象,经运行时验证),
+            // 供 catch/finally 阶段做"是否仍是当前任务"的身份判断
+            val self = coroutineContext[Job] ?: error("No Job in outline coroutine context")
             try {
                 val settings = settingsStore.settingsFlow.first()
                 val conversation = getConversationFlow(conversationId).value
@@ -976,7 +979,7 @@ class ChatService(
                     ),
                 ).collect { chunk ->
                     // 只累积文本增量作为草稿（忽略 reasoning 等其它部件）
-                    val text = chunk.choices.getOrNull(0)?.delta?.parts
+                    val text = chunk.choices.firstOrNull()?.delta?.parts
                         ?.filterIsInstance<UIMessagePart.Text>()
                         ?.joinToString("") { it.text }
                         ?: ""
@@ -987,14 +990,21 @@ class ChatService(
 
                 setOutlineState(conversationId) { it.copy(isGenerating = false) }
             } catch (e: CancellationException) {
-                // 用户停止：保留已生成草稿，不记为错误
-                setOutlineState(conversationId) { it.copy(isGenerating = false) }
+                // 用户停止/重触发：仅当自己仍是该会话的当前任务时才清理状态，
+                // 防止旧任务在重触发后把新状态 isGenerating 覆写回 false
+                if (outlineJobs[conversationId] == self) {
+                    setOutlineState(conversationId) { it.copy(isGenerating = false) }
+                }
                 throw e
             } catch (e: Exception) {
                 e.printStackTrace()
-                setOutlineState(conversationId) { it.copy(isGenerating = false, error = e) }
+                // 仅当自己仍是当前任务才记录错误（防止旧任务异常收尾污染重触发后的新状态）
+                if (outlineJobs[conversationId] == self) {
+                    setOutlineState(conversationId) { it.copy(isGenerating = false, error = e) }
+                }
             } finally {
-                outlineJobs.remove(conversationId)
+                // 仅当自己是当前任务才移除，避免删除重触发写入的新任务
+                outlineJobs.remove(conversationId, self)
             }
         }
         outlineJobs[conversationId] = job
