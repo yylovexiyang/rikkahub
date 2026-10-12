@@ -45,6 +45,7 @@ import me.rerere.ai.ui.canResumeToolExecution
 import me.rerere.ai.ui.finishPendingTools
 import me.rerere.ai.ui.finishReasoning
 import me.rerere.ai.ui.isEmptyInputMessage
+import me.rerere.ai.ui.limitContext
 import me.rerere.common.android.Logging
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.CHAT_COMPLETED_NOTIFICATION_CHANNEL_ID
@@ -106,6 +107,14 @@ enum class ChatErrorSolution {
     CheckTitleModelSettings,
 }
 
+// 大纲生成状态（按会话隔离，仅内存态；确认大纲后即消费，不持久化）
+data class OutlineState(
+    val rawInput: String = "",          // 生成大纲所用的用户原始输入
+    val draft: String = "",             // 流式累积的大纲草稿
+    val isGenerating: Boolean = false,  // 是否正在流式生成
+    val error: Throwable? = null,       // 生成失败时的异常
+)
+
 private val inputTransformers by lazy {
     listOf(
         TimeReminderTransformer,
@@ -145,6 +154,18 @@ class ChatService(
     // 错误状态
     private val _errors = MutableStateFlow<List<ChatError>>(emptyList())
     val errors: StateFlow<List<ChatError>> = _errors.asStateFlow()
+
+    // 大纲生成：状态按会话隔离流 + 进行中的任务表
+    private val outlineJobs = ConcurrentHashMap<Uuid, Job>()
+    private val _outlineStates = MutableStateFlow<Map<Uuid, OutlineState>>(emptyMap())
+    val outlineStates: StateFlow<Map<Uuid, OutlineState>> = _outlineStates.asStateFlow()
+
+    // 更新指定会话的大纲状态
+    private fun setOutlineState(conversationId: Uuid, update: (OutlineState) -> OutlineState) {
+        _outlineStates.update { map ->
+            map + (conversationId to update(map[conversationId] ?: OutlineState()))
+        }
+    }
 
     fun addError(
         error: Throwable,
@@ -220,6 +241,9 @@ class ChatService(
             return
         }
         if (sessions.remove(conversationId, session)) {
+            // 清理该会话的大纲草稿内存态
+            _outlineStates.update { it - conversationId }
+            outlineJobs.remove(conversationId)?.cancel()
             session.cleanup()
             _sessionsVersion.value++
             Log.i(TAG, "removeSession: $conversationId (remaining: ${sessions.size})")
@@ -882,6 +906,106 @@ class ChatService(
         )
 
         saveConversation(conversationId, newConversation)
+    }
+
+    // ---- 生成大纲 ----
+
+    /**
+     * 生成大纲草稿：provider 直调 + 流式，独立于正文生成管线
+     *
+     * 消息组装：助手 system prompt（允许时含会话级覆盖）+ 对话历史（尊重上下文限制）
+     * + 大纲提示词（{input}/{locale} 占位符已渲染）。不带工具/注入/记忆。
+     *
+     * @param rawInput 用户原始输入（仅用于生成大纲，不进入上下文）
+     */
+    fun generateOutline(conversationId: Uuid, rawInput: String): Job {
+        // 同一会话重复触发（如重新生成）时先取消旧任务
+        outlineJobs[conversationId]?.cancel()
+
+        setOutlineState(conversationId) {
+            OutlineState(rawInput = rawInput, isGenerating = true)
+        }
+
+        val job = appScope.launch {
+            try {
+                val settings = settingsStore.settingsFlow.first()
+                val conversation = getConversationFlow(conversationId).value
+                val assistant = settings.getAssistantById(conversation.assistantId)
+                    ?: settings.getCurrentAssistant()
+
+                // 模型：大纲专用模型优先，否则跟随当前聊天模型
+                val model =
+                    settings.findModelById(assistant.outlineConfig.modelId ?: assistant.chatModelId ?: settings.chatModelId)
+                        ?: throw IllegalStateException(
+                            context.getString(R.string.error_title_generate_outline)
+                        )
+                val provider = model.findProvider(settings.providers)
+                    ?: throw IllegalStateException("Provider not found")
+
+                // 大纲请求的 system prompt 与正文一致（允许会话级覆盖），但不带注入/记忆/工具
+                val systemPrompt = if (
+                    assistant.allowConversationSystemPrompt && !conversation.customSystemPrompt.isNullOrBlank()
+                ) {
+                    conversation.customSystemPrompt
+                } else {
+                    assistant.systemPrompt
+                }
+
+                val prompt = assistant.outlineConfig.prompt.applyPlaceholders(
+                    "input" to rawInput,
+                    "locale" to Locale.getDefault().displayName,
+                )
+                val messages = buildList {
+                    if (systemPrompt.isNotBlank()) {
+                        add(UIMessage.system(prompt = systemPrompt))
+                    }
+                    // 尊重助手配置的上下文窗口限制
+                    addAll(
+                        conversation.currentMessages.limitContext(assistant.contextMessageSize)
+                    )
+                    add(UIMessage.user(prompt = prompt))
+                }
+
+                val providerImpl = providerManager.getProviderByType(provider)
+                providerImpl.streamText(
+                    providerSetting = provider,
+                    messages = messages,
+                    params = TextGenerationParams(
+                        model = model,
+                        reasoningLevel = ReasoningLevel.OFF,
+                    ),
+                ).collect { chunk ->
+                    // 只累积文本增量作为草稿（忽略 reasoning 等其它部件）
+                    val text = chunk.choices.getOrNull(0)?.delta?.parts
+                        ?.filterIsInstance<UIMessagePart.Text>()
+                        ?.joinToString("") { it.text }
+                        ?: ""
+                    if (text.isNotEmpty()) {
+                        setOutlineState(conversationId) { it.copy(draft = it.draft + text) }
+                    }
+                }
+
+                setOutlineState(conversationId) { it.copy(isGenerating = false) }
+            } catch (e: CancellationException) {
+                // 用户停止：保留已生成草稿，不记为错误
+                setOutlineState(conversationId) { it.copy(isGenerating = false) }
+                throw e
+            } catch (e: Exception) {
+                e.printStackTrace()
+                setOutlineState(conversationId) { it.copy(isGenerating = false, error = e) }
+            } finally {
+                outlineJobs.remove(conversationId)
+            }
+        }
+        outlineJobs[conversationId] = job
+        return job
+    }
+
+    /**
+     * 停止大纲生成（保留已生成草稿，转入可编辑态）
+     */
+    fun stopOutlineGeneration(conversationId: Uuid) {
+        outlineJobs[conversationId]?.cancel()
     }
 
     // ---- 通知 ----
