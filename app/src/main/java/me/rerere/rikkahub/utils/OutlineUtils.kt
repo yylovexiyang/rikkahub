@@ -2,12 +2,12 @@ package me.rerere.rikkahub.utils
 
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.jsonPrimitiveOrNull
 
-// 大纲消息元数据键：记录生成大纲所用的用户原始输入
-const val OUTLINE_META_KEY = "originalInput"
+// 大纲消息元数据键：记录生成大纲所用的用户原始输入；带 outline 前缀避免与其他元数据键冲突，键名随消息持久化即成契约
+const val OUTLINE_META_KEY = "outline_original_input"
 
 /**
  * 将大纲流程的用户原始输入写入第一个文本部件的元数据
@@ -29,11 +29,9 @@ fun List<UIMessagePart>.attachOutlineOriginalInput(originalInput: String?): List
 }
 
 /**
- * 读取文本部件中记录的大纲原始输入；无记录时返回 null
+ * 读取文本部件中记录的大纲原始输入；无记录或元数据类型异常时返回 null
  */
 fun UIMessagePart.Text.readOutlineOriginalInput(): String? {
-    // 防御非字符串元数据导致的解析异常
-    return runCatching {
-        metadata?.get(OUTLINE_META_KEY)?.jsonPrimitive?.contentOrNull
-    }.getOrNull()
+    // jsonPrimitiveOrNull 安全转换：非字符串原语（对象/数组等）直接得出 null，无需异常防护
+    return metadata?.get(OUTLINE_META_KEY)?.jsonPrimitiveOrNull?.contentOrNull
 }

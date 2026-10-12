@@ -54,4 +54,43 @@ class OutlineUtilsTest {
         val parts = listOf(UIMessagePart.Image("file://a.png"))
         assertEquals(parts, parts.attachOutlineOriginalInput("需求"))
     }
+
+    // attach 的 null 输入分支：原样返回，不写元数据
+    @Test
+    fun `attach passes through null input`() {
+        val parts = listOf(UIMessagePart.Text("t"))
+        assertEquals(parts, parts.attachOutlineOriginalInput(null))
+    }
+
+    // read 防御分支：元数据值为对象时返回 null（非字符串原语）；为数字时返回其字面文本
+    @Test
+    fun `read handles non string primitive values`() {
+        // 元数据值是 JsonObject：不是字符串原语，读取应安全返回 null
+        val objectValue = UIMessagePart.Text(
+            "t",
+            metadata = buildJsonObject {
+                put(OUTLINE_META_KEY, buildJsonObject { put("x", "y") })
+            },
+        )
+        assertNull(objectValue.readOutlineOriginalInput())
+
+        // 元数据值是数字 JsonPrimitive：content 属性是其字面文本 "123"
+        val numberValue = UIMessagePart.Text(
+            "t",
+            metadata = buildJsonObject { put(OUTLINE_META_KEY, JsonPrimitive(123)) },
+        )
+        assertEquals("123", numberValue.readOutlineOriginalInput())
+    }
+
+    // 特殊字符 roundtrip：换行、引号、emoji 随元数据持久化后原样读回，且键名带 outline 前缀
+    @Test
+    fun `attach then read roundtrips special characters`() {
+        val original = "带换行\n带引号\"、emoji 🦊"
+        val attached = listOf(UIMessagePart.Text("t")).attachOutlineOriginalInput(original)
+        assertEquals(
+            "outline_original_input",
+            (attached.first() as UIMessagePart.Text).metadata?.keys?.first(),
+        )
+        assertEquals(original, (attached.first() as UIMessagePart.Text).readOutlineOriginalInput())
+    }
 }
