@@ -19,11 +19,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.service.OutlineState
 
@@ -44,6 +47,13 @@ fun OutlineSheet(
     onConfirm: (draft: String, rawInput: String) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState()
+    val sheetScope = rememberCoroutineScope()
+
+    // 隐藏后再执行动作（带收起动画）
+    fun hideThen(action: () -> Unit) {
+        sheetScope.launch { sheetState.hide() }.invokeOnCompletion { action() }
+    }
+
     // 原始输入编辑态：以生成时记录的原文初始化
     val rawInputState = remember(state?.rawInput) {
         TextFieldState(initialText = state?.rawInput ?: "")
@@ -55,6 +65,8 @@ fun OutlineSheet(
     val isGenerating = state?.isGenerating ?: false
     // 生成中的草稿快照：state 可能整个为 null，无法 smart cast，先取局部值
     val generatingDraft = state?.draft ?: ""
+    // 大纲草稿滚动状态（流式自动跟底）
+    val draftScrollState = rememberScrollState()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -110,15 +122,19 @@ fun OutlineSheet(
                     text = generatingDraft.ifBlank { stringResource(R.string.outline_sheet_generating) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight()
-                        .verticalScroll(rememberScrollState()),
+                        .weight(1f)
+                        .verticalScroll(draftScrollState),
                 )
+                // 流式草稿增长时自动滚动到底部
+                LaunchedEffect(generatingDraft) {
+                    draftScrollState.animateScrollTo(draftScrollState.maxValue)
+                }
             } else {
                 OutlinedTextField(
                     state = draftState,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight(),
+                        .weight(1f),
                     lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 4, maxHeightInLines = 20),
                 )
                 state?.error?.let { error ->
@@ -136,7 +152,7 @@ fun OutlineSheet(
             // 操作行：取消 / 确认生成正文
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(
-                    onClick = onDismiss,
+                    onClick = { hideThen { onDismiss() } },
                     modifier = Modifier.weight(1f),
                 ) {
                     Text(stringResource(R.string.cancel))
@@ -144,11 +160,13 @@ fun OutlineSheet(
                 Button(
                     enabled = !isGenerating && draftState.text.isNotBlank(),
                     onClick = {
-                        // 函数类型调用禁止具名实参，改为按声明顺序传位置参数
-                        onConfirm(
-                            draftState.text.toString(),
-                            rawInputState.text.toString(),
-                        )
+                        hideThen {
+                            // 函数类型调用禁止具名实参，改为按声明顺序传位置参数
+                            onConfirm(
+                                draftState.text.toString(),
+                                rawInputState.text.toString(),
+                            )
+                        }
                     },
                     modifier = Modifier.weight(1f),
                 ) {
