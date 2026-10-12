@@ -9,6 +9,7 @@ import me.rerere.hugeicons.stroke.Message02
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Puzzle
 import me.rerere.hugeicons.stroke.Wrench01
+import me.rerere.hugeicons.stroke.Menu03
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
@@ -112,6 +113,14 @@ fun AssistantDetailPage(id: String) {
                         leadingContent = { Icon(HugeIcons.Puzzle, null) },
                         supportingContent = { Text(stringResource(R.string.assistant_detail_extensions_desc)) },
                         headlineContent = { Text(stringResource(R.string.assistant_page_tab_extensions)) },
+                        trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+                    )
+                    // 大纲设置入口卡片
+                    item(
+                        onClick = { navController.navigate(Screen.AssistantOutline(id)) },
+                        leadingContent = { Icon(HugeIcons.Menu03, null) },
+                        supportingContent = { Text(stringResource(R.string.assistant_detail_outline_desc)) },
+                        headlineContent = { Text(stringResource(R.string.assistant_outline)) },
                         trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
                     )
                     item(
