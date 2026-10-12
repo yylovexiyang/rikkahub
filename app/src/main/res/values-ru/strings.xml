@@ -1104,5 +1104,28 @@
   <string name="setting_model_page_prompt_suggestion">Подсказки ответов в чате</string>
   <string name="setting_model_page_prompt_ocr">OCR распознавание</string>
   <string name="setting_model_page_prompt_compress">Сжатие контекста</string>
+  <!-- ===== 大纲功能（outline feature）===== -->
+  <string name="error_title_generate_outline">Ошибка генерации плана</string>
+  <string name="chat_input_outline">План</string>
+  <string name="chat_input_outline_enabled">Режим плана включён</string>
+  <string name="chat_input_outline_disabled">Режим плана выключен</string>
+  <string name="outline_sheet_title">План</string>
+  <string name="outline_sheet_original_input">Исходный запрос</string>
+  <string name="outline_sheet_draft">Черновик плана</string>
+  <string name="outline_sheet_generating">Генерация плана...</string>
+  <string name="outline_sheet_regenerate">Сгенерировать заново</string>
+  <string name="outline_sheet_confirm">Подтвердить</string>
+  <string name="outline_sheet_retry">Повторить</string>
+  <string name="outline_sheet_error_prefix">Ошибка генерации:</string>
+  <string name="chat_message_view_original_input">Показать исходный запрос</string>
+  <string name="copied_to_clipboard">Скопировано в буфер обмена</string>
+  <string name="assistant_outline">План</string>
+  <string name="assistant_detail_outline_desc">Генерация через план для этого ассистента</string>
+  <string name="assistant_outline_enable">Включить режим плана</string>
+  <string name="assistant_outline_enable_desc">После включения отправка сообщения сначала создаёт план для подтверждения, а затем финальный ответ</string>
+  <string name="assistant_outline_prompt">Промпт для плана</string>
+  <string name="assistant_outline_prompt_desc">Шаблон генерации плана. Плейсхолдеры: {input} — исходный запрос, {locale} — язык системы</string>
+  <string name="assistant_outline_model">Модель генерации плана</string>
+  <string name="assistant_outline_model_desc">Оставьте пустым, чтобы использовать текущую модель чата</string>
 </resources>
 

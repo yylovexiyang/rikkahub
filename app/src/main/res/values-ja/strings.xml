@@ -1104,5 +1104,28 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="setting_model_page_prompt_suggestion">チャット返信の提案</string>
   <string name="setting_model_page_prompt_ocr">OCR認識</string>
   <string name="setting_model_page_prompt_compress">コンテキスト圧縮</string>
+  <!-- ===== 大纲功能（outline feature）===== -->
+  <string name="error_title_generate_outline">アウトラインの生成に失敗しました</string>
+  <string name="chat_input_outline">アウトライン</string>
+  <string name="chat_input_outline_enabled">アウトラインフローを有効にしました</string>
+  <string name="chat_input_outline_disabled">アウトラインフローを無効にしました</string>
+  <string name="outline_sheet_title">アウトライン</string>
+  <string name="outline_sheet_original_input">元の入力</string>
+  <string name="outline_sheet_draft">アウトラインの下書き</string>
+  <string name="outline_sheet_generating">アウトラインを生成中...</string>
+  <string name="outline_sheet_regenerate">再生成</string>
+  <string name="outline_sheet_confirm">決定</string>
+  <string name="outline_sheet_retry">再試行</string>
+  <string name="outline_sheet_error_prefix">生成失敗：</string>
+  <string name="chat_message_view_original_input">元の入力を表示</string>
+  <string name="copied_to_clipboard">クリップボードにコピーしました</string>
+  <string name="assistant_outline">アウトライン</string>
+  <string name="assistant_detail_outline_desc">このアシスタントのアウトライン先行生成フロー</string>
+  <string name="assistant_outline_enable">アウトラインフローを有効化</string>
+  <string name="assistant_outline_enable_desc">有効にすると、メッセージ送信時にまずアウトラインを生成して確認し、その後に正式な返信を生成します</string>
+  <string name="assistant_outline_prompt">アウトライン生成プロンプト</string>
+  <string name="assistant_outline_prompt_desc">アウトライン生成のテンプレート。プレースホルダー：{input} は元の入力、{locale} はシステム言語</string>
+  <string name="assistant_outline_model">アウトライン生成モデル</string>
+  <string name="assistant_outline_model_desc">空欄の場合は現在のチャットモデルに従います</string>
 </resources>
 

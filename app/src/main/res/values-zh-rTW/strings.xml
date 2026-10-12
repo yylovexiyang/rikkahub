@@ -1102,5 +1102,28 @@
   <string name="setting_model_page_prompt_suggestion">聊天回覆建議</string>
   <string name="setting_model_page_prompt_ocr">OCR 辨識</string>
   <string name="setting_model_page_prompt_compress">上下文壓縮</string>
+  <!-- ===== 大纲功能（outline feature）===== -->
+  <string name="error_title_generate_outline">產生大綱失敗</string>
+  <string name="chat_input_outline">大綱</string>
+  <string name="chat_input_outline_enabled">大綱流程已開啟</string>
+  <string name="chat_input_outline_disabled">大綱流程已關閉</string>
+  <string name="outline_sheet_title">大綱</string>
+  <string name="outline_sheet_original_input">原始輸入</string>
+  <string name="outline_sheet_draft">大綱草稿</string>
+  <string name="outline_sheet_generating">正在產生大綱...</string>
+  <string name="outline_sheet_regenerate">重新產生</string>
+  <string name="outline_sheet_confirm">確認</string>
+  <string name="outline_sheet_retry">重試</string>
+  <string name="outline_sheet_error_prefix">產生失敗：</string>
+  <string name="chat_message_view_original_input">檢視原始輸入</string>
+  <string name="copied_to_clipboard">已複製到剪貼簿</string>
+  <string name="assistant_outline">大綱</string>
+  <string name="assistant_detail_outline_desc">為此助理設定的大綱式產生流程</string>
+  <string name="assistant_outline_enable">啟用大綱流程</string>
+  <string name="assistant_outline_enable_desc">開啟後，傳送訊息會先產生大綱供確認，再產生正式回覆</string>
+  <string name="assistant_outline_prompt">大綱提示詞</string>
+  <string name="assistant_outline_prompt_desc">大綱產生範本。佔位符：{input} 為原始輸入，{locale} 為系統語言</string>
+  <string name="assistant_outline_model">大綱產生模型</string>
+  <string name="assistant_outline_model_desc">留空表示跟隨目前聊天模型</string>
 </resources>
 

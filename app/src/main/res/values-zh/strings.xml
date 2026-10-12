@@ -1104,5 +1104,28 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_model_page_prompt_suggestion">聊天回复建议</string>
   <string name="setting_model_page_prompt_ocr">OCR识别</string>
   <string name="setting_model_page_prompt_compress">上下文压缩</string>
+  <!-- ===== 大纲功能（outline feature）===== -->
+  <string name="error_title_generate_outline">生成大纲失败</string>
+  <string name="chat_input_outline">大纲</string>
+  <string name="chat_input_outline_enabled">大纲流程已开启</string>
+  <string name="chat_input_outline_disabled">大纲流程已关闭</string>
+  <string name="outline_sheet_title">大纲</string>
+  <string name="outline_sheet_original_input">原始输入</string>
+  <string name="outline_sheet_draft">大纲草稿</string>
+  <string name="outline_sheet_generating">正在生成大纲...</string>
+  <string name="outline_sheet_regenerate">重新生成</string>
+  <string name="outline_sheet_confirm">确认</string>
+  <string name="outline_sheet_retry">重试</string>
+  <string name="outline_sheet_error_prefix">生成失败：</string>
+  <string name="chat_message_view_original_input">查看原始输入</string>
+  <string name="copied_to_clipboard">已复制到剪贴板</string>
+  <string name="assistant_outline">大纲</string>
+  <string name="assistant_detail_outline_desc">面向该助手的大纲式生成流程</string>
+  <string name="assistant_outline_enable">启用大纲流程</string>
+  <string name="assistant_outline_enable_desc">开启后，发送消息将先生成大纲供确认，再生成正式回复</string>
+  <string name="assistant_outline_prompt">大纲提示词</string>
+  <string name="assistant_outline_prompt_desc">大纲生成模板。占位符：{input} 为原始输入，{locale} 为系统语言</string>
+  <string name="assistant_outline_model">大纲生成模型</string>
+  <string name="assistant_outline_model_desc">留空表示跟随当前聊天模型</string>
 </resources>
 
