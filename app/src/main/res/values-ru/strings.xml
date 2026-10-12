@@ -1127,5 +1127,8 @@
   <string name="assistant_outline_prompt_desc">Шаблон генерации плана. Плейсхолдеры: {input} — исходный запрос, {locale} — язык системы</string>
   <string name="assistant_outline_model">Модель генерации плана</string>
   <string name="assistant_outline_model_desc">Оставьте пустым, чтобы использовать текущую модель чата</string>
+  <string name="outline_extension_manage">Управление расширениями</string>
+  <string name="outline_extension_summary_empty">Расширения не выбраны</string>
+  <string name="outline_extension_tip">Расширения плана сохраняются отдельно и не влияют на чат</string>
 </resources>
 

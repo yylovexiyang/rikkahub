@@ -1127,5 +1127,8 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="assistant_outline_prompt_desc">アウトライン生成のテンプレート。プレースホルダー：{input} は元の入力、{locale} はシステム言語</string>
   <string name="assistant_outline_model">アウトライン生成モデル</string>
   <string name="assistant_outline_model_desc">空欄の場合は現在のチャットモデルに従います</string>
+  <string name="outline_extension_manage">拡張機能の管理</string>
+  <string name="outline_extension_summary_empty">拡張機能が未選択です</string>
+  <string name="outline_extension_tip">アウトラインの拡張機能は独立して保存され、チャットには影響しません</string>
 </resources>
 

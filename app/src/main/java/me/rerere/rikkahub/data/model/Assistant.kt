@@ -60,6 +60,10 @@ data class OutlineConfig(
     val enabled: Boolean = false,                // 总开关
     val prompt: String = DEFAULT_OUTLINE_PROMPT, // 大纲生成提示词模板
     val modelId: Uuid? = null,                   // 大纲生成专用模型，null = 跟随当前聊天模型
+    val quickMessageIds: Set<Uuid> = emptySet(),   // 大纲专用快捷消息勾选（独立于助手聊天的同名勾选）
+    val modeInjectionIds: Set<Uuid> = emptySet(),  // 大纲专用模式注入勾选
+    val lorebookIds: Set<Uuid> = emptySet(),       // 大纲专用世界书勾选
+    val enabledSkills: Set<String> = emptySet(),   // 大纲专用 Skills 勾选（存 skill 名称）
 )
 
 @Serializable

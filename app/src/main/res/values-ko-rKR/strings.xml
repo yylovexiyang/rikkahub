@@ -1127,5 +1127,8 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="assistant_outline_prompt_desc">개요 생성 템플릿입니다. 자리표시자: {input}은 원본 입력, {locale}은 시스템 언어</string>
   <string name="assistant_outline_model">개요 생성 모델</string>
   <string name="assistant_outline_model_desc">비워 두면 현재 채팅 모델을 따릅니다</string>
+  <string name="outline_extension_manage">확장 프로그램 관리</string>
+  <string name="outline_extension_summary_empty">선택된 확장 프로그램이 없습니다</string>
+  <string name="outline_extension_tip">개요 확장 프로그램은 독립적으로 저장되며 채팅에 영향을 주지 않습니다</string>
 </resources>
 

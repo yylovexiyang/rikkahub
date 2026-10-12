@@ -68,6 +68,9 @@ import me.rerere.rikkahub.data.ai.transformers.RegexOutputTransformer
 import me.rerere.rikkahub.data.ai.transformers.TemplateTransformer
 import me.rerere.rikkahub.data.ai.transformers.ThinkTagTransformer
 import me.rerere.rikkahub.data.ai.transformers.TimeReminderTransformer
+import me.rerere.rikkahub.data.ai.transformers.filterEnabledLorebooks
+import me.rerere.rikkahub.data.ai.transformers.filterEnabledModeInjections
+import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
@@ -78,6 +81,7 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantAffectScope
+import me.rerere.rikkahub.data.model.isTriggered
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.data.model.toMessageNode
 import me.rerere.rikkahub.data.repository.ConversationRepository
@@ -945,13 +949,30 @@ class ChatService(
                 val provider = model.findProvider(settings.providers)
                     ?: throw IllegalStateException("Provider not found")
 
-                // 大纲请求的 system prompt 与正文一致（允许会话级覆盖），但不带注入/记忆/工具
-                val systemPrompt = if (
+                // 大纲请求的 base system prompt 与正文一致（允许会话级覆盖），不带记忆/工具
+                val baseSystemPrompt = if (
                     assistant.allowConversationSystemPrompt && !conversation.customSystemPrompt.isNullOrBlank()
                 ) {
                     conversation.customSystemPrompt
                 } else {
                     assistant.systemPrompt
+                }
+
+                // 构建大纲专属的扩展注入附加段（模式注入/世界书/Skills）。
+                // 勾选来源是 outlineConfig 的独立字段，与助手聊天的同名勾选互不影响，
+                // 因此绝不触碰聊天管线的 PromptInjectionTransformer 路径。
+                val injectionPrompt = buildOutlineInjectionPrompt(
+                    assistant = assistant,
+                    settings = settings,
+                    rawInput = rawInput,
+                )
+                // 注入附加段统一并入 system prompt 末尾；无命中内容时保持原样（行为与现状完全一致）
+                val systemPrompt = buildString {
+                    append(baseSystemPrompt)
+                    if (injectionPrompt.isNotBlank()) {
+                        if (isNotEmpty()) append("\n\n") // 与基础提示词空一行分隔
+                        append(injectionPrompt)
+                    }
                 }
 
                 val prompt = assistant.outlineConfig.prompt.applyPlaceholders(
@@ -1009,6 +1030,102 @@ class ChatService(
         }
         outlineJobs[conversationId] = job
         return job
+    }
+
+    /**
+     * 构建大纲专属的扩展注入附加段（模式注入 + 世界书 + Skills）
+     *
+     * 大纲是独立轻量管线（不走 inputTransformers 管线），PromptInjectionTransformer
+     * 的"按 InjectionPosition 往消息流插桩"逻辑不适用；且大纲输出是结构草稿而非
+     * 聊天回复，无需区分注入方位，因此把三类扩展内容统一并入大纲 system prompt
+     * 末尾附加段——这是对聊天路径"按位置注入"的简化，原因：
+     * 1. 大纲生成的消息结构固定（system + 历史上下文 + 一条大纲请求），位置语义意义有限；
+     * 2. 统一附加段实现最简单、对模型指引清晰、额外 token 开销最小。
+     *
+     * 复用说明：勾选/启用过滤复用 PromptInjectionTransformer 中抽取的共用纯函数；
+     * 世界书条目触发扫描复用模型层纯函数 RegexInjection.isTriggered，仅扫描上下文
+     * 由"聊天路径的最近 N 条消息"换成 rawInput（大纲阶段只有本次原始输入可用）。
+     *
+     * @param assistant 当前助手，其 outlineConfig 持有大纲专用勾选（与助手聊天勾选相互独立）
+     * @param settings 全局设置（提供 modeInjections / lorebooks 全量列表）
+     * @param rawInput 用户原始输入，作为世界书关键词触发扫描的上下文
+     * @return 附加段文本；无任何命中内容时返回空字符串，调用方据此不追加任何文本
+     */
+    private fun buildOutlineInjectionPrompt(
+        assistant: Assistant,
+        settings: Settings,
+        rawInput: String,
+    ): String {
+        val outlineConfig = assistant.outlineConfig
+        // 三类勾选全部为空时直接短路：零开销且保证与未开启勾选时的行为完全一致
+        if (
+            outlineConfig.modeInjectionIds.isEmpty()
+            && outlineConfig.lorebookIds.isEmpty()
+            && outlineConfig.enabledSkills.isEmpty()
+        ) {
+            return ""
+        }
+        val sections = mutableListOf<String>()
+
+        // 1. 模式注入：按大纲专用勾选 + enabled 过滤，按优先级降序（与聊天路径排序一致）
+        val modeInjections = filterEnabledModeInjections(
+            modeInjections = settings.modeInjections,
+            selectedIds = outlineConfig.modeInjectionIds,
+        )
+        if (modeInjections.isNotEmpty()) {
+            sections += buildString {
+                appendLine("<assistant_injections>")
+                modeInjections.sortedByDescending { it.priority }.forEach { injection ->
+                    // 每条注入标出名称，便于模型理解注入来源（聊天路径按位置插入，此处统一并入 system）
+                    appendLine("<injection name=\"${injection.name}\">")
+                    appendLine(injection.content)
+                    appendLine("</injection>")
+                }
+                append("</assistant_injections>")
+            }.trimEnd()
+        }
+
+        // 2. 世界书：按大纲专用勾选 + enabled 过滤全书后，用 rawInput 做关键词触发扫描，
+        //    命中条目按优先级降序合并（与聊天路径 getTriggeredInjections 的排序一致）
+        val triggeredEntries = filterEnabledLorebooks(
+            lorebooks = settings.lorebooks,
+            selectedIds = outlineConfig.lorebookIds,
+        ).flatMap { lorebook ->
+            lorebook.entries
+                .filter { entry -> entry.isTriggered(rawInput) }
+                .sortedByDescending { it.priority }
+        }
+        if (triggeredEntries.isNotEmpty()) {
+            sections += buildString {
+                appendLine("<worldbook_entries>")
+                triggeredEntries.forEach { entry ->
+                    appendLine("<entry name=\"${entry.name}\">")
+                    appendLine(entry.content)
+                    appendLine("</entry>")
+                }
+                append("</worldbook_entries>")
+            }.trimEnd()
+        }
+
+        // 3. Skills：按大纲专用勾选的 skill 名称过滤，直接把 SKILL.md 正文注入 system prompt。
+        //    与聊天路径的差异：聊天通过 createSkillTools 的 use_skill 工具让模型按需加载；
+        //    大纲管线不注册任何工具，故直接内联正文（readSkillBody 已剔除 frontmatter），
+        //    正文拉取失败/为空时静默跳过该 skill，不中断大纲生成。
+        if (outlineConfig.enabledSkills.isNotEmpty()) {
+            skillManager.listSkills()
+                .filter { it.name in outlineConfig.enabledSkills }
+                .forEach { skill ->
+                    val body = skillManager.readSkillBody(skill.name) ?: return@forEach
+                    if (body.isBlank()) return@forEach
+                    sections += buildString {
+                        appendLine("<skill name=\"${skill.name}\">")
+                        append(body)
+                        append("\n</skill>")
+                    }
+                }
+        }
+
+        return sections.joinToString("\n\n")
     }
 
     /**

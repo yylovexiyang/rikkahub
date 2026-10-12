@@ -89,15 +89,12 @@ internal fun collectInjections(
         assistant.lorebookIds
     }
 
-    // 1. 获取关联的 ModeInjection
-    modeInjections
-        .filter { it.enabled && effectiveModeInjectionIds.contains(it.id) }
+    // 1. 获取关联的 ModeInjection（复用聊天/大纲共用的勾选+启用过滤纯函数）
+    filterEnabledModeInjections(modeInjections, effectiveModeInjectionIds)
         .forEach { injections.add(it) }
 
     // 2. 获取关联的 Lorebook 中被触发的 RegexInjection
-    val enabledLorebooks = lorebooks.filter {
-        it.enabled && effectiveLorebookIds.contains(it.id)
-    }
+    val enabledLorebooks = filterEnabledLorebooks(lorebooks, effectiveLorebookIds)
     if (enabledLorebooks.isNotEmpty()) {
         // 提取上下文用于匹配（只取非 SYSTEM 消息）
         val nonSystemMessages = messages.filter { it.role != MessageRole.SYSTEM }
@@ -113,6 +110,39 @@ internal fun collectInjections(
     }
 
     return injections
+}
+
+/**
+ * 按勾选 ID 过滤"已启用"的模式注入（聊天与大纲两条路径共用的纯函数）
+ *
+ * 大纲生成（ChatService#generateOutline）是独立轻量管线，不走 inputTransformers，
+ * 不能复用本 Transformer 的消息改装逻辑，但"勾选集 + enabled"这一过滤语义必须
+ * 两侧一致，因此抽取为共用纯函数，避免聊天路径与大纲路径的过滤规则漂移。
+ *
+ * @param modeInjections 全局设置中的模式注入列表
+ * @param selectedIds 最终生效的勾选 ID 集（聊天路径=助手勾选或会话级绑定；大纲路径=outlineConfig 勾选）
+ */
+internal fun filterEnabledModeInjections(
+    modeInjections: List<PromptInjection.ModeInjection>,
+    selectedIds: Set<Uuid>,
+): List<PromptInjection.ModeInjection> {
+    return modeInjections.filter { it.enabled && selectedIds.contains(it.id) }
+}
+
+/**
+ * 按勾选 ID 过滤"已启用"的 Lorebook（聊天与大纲两条路径共用的纯函数）
+ *
+ * 仅负责书级别的勾选与启用过滤；条目级触发判断依赖各自的扫描上下文
+ * （聊天=最近消息按 scanDepth 提取，大纲=用户原始输入），由调用方各自处理。
+ *
+ * @param lorebooks 全局设置中的世界书列表
+ * @param selectedIds 最终生效的 Lorebook 勾选 ID 集
+ */
+internal fun filterEnabledLorebooks(
+    lorebooks: List<Lorebook>,
+    selectedIds: Set<Uuid>,
+): List<Lorebook> {
+    return lorebooks.filter { it.enabled && selectedIds.contains(it.id) }
 }
 
 /**

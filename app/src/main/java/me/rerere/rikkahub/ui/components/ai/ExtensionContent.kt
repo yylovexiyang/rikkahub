@@ -186,6 +186,12 @@ fun QuickMessagesContent(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             )
         }
+        // 补上与其它内容组件一致的"管理"按钮入口（原先 onManage 参数未生效）
+        if (onManage != null) {
+            item {
+                ManageButton(onClick = onManage)
+            }
+        }
     }
 }
 

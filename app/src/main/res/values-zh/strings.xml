@@ -1127,5 +1127,8 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="assistant_outline_prompt_desc">大纲生成模板。占位符：{input} 为原始输入，{locale} 为系统语言</string>
   <string name="assistant_outline_model">大纲生成模型</string>
   <string name="assistant_outline_model_desc">留空表示跟随当前聊天模型</string>
+  <string name="outline_extension_manage">扩展管理</string>
+  <string name="outline_extension_summary_empty">未选择扩展</string>
+  <string name="outline_extension_tip">大纲扩展勾选独立保存，不会影响聊天</string>
 </resources>
 

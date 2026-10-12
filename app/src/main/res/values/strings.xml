@@ -1126,5 +1126,8 @@
   <string name="assistant_outline_prompt_desc">Template for outline generation. Placeholders: {input} for raw input, {locale} for system language</string>
   <string name="assistant_outline_model">Outline model</string>
   <string name="assistant_outline_model_desc">Leave empty to follow the current chat model</string>
+  <string name="outline_extension_manage">Manage Extensions</string>
+  <string name="outline_extension_summary_empty">No extensions selected</string>
+  <string name="outline_extension_tip">Outline extensions are saved separately and do not affect chat</string>
 </resources>
 
