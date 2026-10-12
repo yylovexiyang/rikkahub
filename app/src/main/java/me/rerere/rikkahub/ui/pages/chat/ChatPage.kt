@@ -309,8 +309,10 @@ private fun ChatPageContent(
                                 messageId = inputState.editingMessage!!,
                             )
                             inputState.clearInput()
-                        } else if (setting.getCurrentAssistant().outlineConfig.enabled) {
-                            // 大纲功能开启：拦截发送，先弹大纲界面生成初稿；输入框内容保留，确认后统一清空
+                        } else if (setting.getCurrentAssistant().outlineConfig.enabled &&
+                            inputState.textContent.text.isNotBlank()
+                        ) {
+                            // 大纲功能开启且输入非空：拦截发送，先弹大纲界面生成初稿；输入框内容保留，确认后统一清空
                             showOutlineSheet = true
                             vm.generateOutline(rawInput = inputState.textContent.text.toString())
                         } else {
