@@ -3,8 +3,11 @@ package me.rerere.rikkahub.ui.pages.chat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.TextFieldLineLimits
@@ -71,10 +74,17 @@ fun OutlineSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
+        // 关闭弹窗默认 insets，交由内容自行消费 ime/导航栏 insets，避免键盘遮挡输入框与按钮
+        // （material3 1.5+ 该参数为 composable lambda 形态，须以 { } 传入而非裸值）
+        contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                // 先消费键盘 insets，再消费导航栏 insets；随后才按 0.85 占高——
+                // 该比例的基准是扣除键盘/导航栏后的可用高度，键盘弹出时弹层整体自动收缩
+                .imePadding()
+                .navigationBarsPadding()
                 .fillMaxHeight(0.85f)
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
