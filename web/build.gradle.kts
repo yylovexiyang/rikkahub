@@ -15,6 +15,9 @@ val buildWebUi = tasks.register<Exec>("buildWebUi") {
     }.getOrDefault(false)
     if (hasZsh) {
         commandLine("zsh", "-ic", "pnpm run build")
+    } else if (System.getProperty("os.name").lowercase().startsWith("windows")) {
+        // Windows 下 pnpm 是 .cmd 脚本，Gradle Exec 无法直接启动，需经 cmd /c
+        commandLine("cmd", "/c", "pnpm", "run", "build")
     } else {
         commandLine("pnpm", "run", "build")
     }
