@@ -37,10 +37,12 @@ import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.FavoriteRepository
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.service.ChatService
+import me.rerere.rikkahub.service.OutlineState
 import me.rerere.rikkahub.ui.hooks.writeStringPreference
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.utils.UiState
 import me.rerere.rikkahub.utils.UpdateChecker
+import me.rerere.rikkahub.utils.attachOutlineOriginalInput
 import java.util.Locale
 import kotlin.uuid.Uuid
 
@@ -73,6 +75,11 @@ class ChatVM(
     val processingStatus: StateFlow<String?> =
         chatService
             .getProcessingStatusFlow(_conversationId)
+
+    // 大纲生成状态（当前会话）
+    val outlineState: StateFlow<OutlineState?> =
+        chatService.outlineStates.map { it[_conversationId] }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     val conversationJobs = chatService
         .getConversationJobs()
@@ -171,12 +178,23 @@ class ChatVM(
      *
      * @param content 消息内容
      * @param answer 是否触发消息生成，如果为false，则仅添加消息到消息列表中
+     * @param outlineOriginalInput 大纲流程的用户原始输入；写入消息文本部件元数据（不进入上下文）
      */
-    fun handleMessageSend(content: List<UIMessagePart>,answer: Boolean = true) {
+    fun handleMessageSend(
+        content: List<UIMessagePart>,
+        answer: Boolean = true,
+        outlineOriginalInput: String? = null,
+    ) {
         if (content.isEmptyInputMessage()) return
-        analytics.logEvent("ai_send_message", null)
-
-        chatService.sendMessage(_conversationId, content, answer)
+        // 大纲流程单独埋点，便于区分使用量
+        if (outlineOriginalInput != null) {
+            analytics.logEvent("ai_send_outline_message", null)
+        } else {
+            analytics.logEvent("ai_send_message", null)
+        }
+        // 原始输入随消息持久化（气泡上可查看），但不会作为上下文发送
+        val processedContent = content.attachOutlineOriginalInput(outlineOriginalInput)
+        chatService.sendMessage(_conversationId, processedContent, answer)
     }
 
     fun handleMessageEdit(parts: List<UIMessagePart>, messageId: Uuid) {
@@ -249,6 +267,16 @@ class ChatVM(
         viewModelScope.launch {
             chatService.stopGeneration(_conversationId)
         }
+    }
+
+    // 触发大纲初稿生成（或重新生成）
+    fun generateOutline(rawInput: String) {
+        chatService.generateOutline(_conversationId, rawInput)
+    }
+
+    // 停止大纲生成（保留已生成草稿）
+    fun stopOutlineGeneration() {
+        chatService.stopOutlineGeneration(_conversationId)
     }
 
     fun saveConversationAsync() {
