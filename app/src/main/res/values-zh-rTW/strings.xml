@@ -1128,7 +1128,6 @@
   <string name="outline_extension_manage">擴充功能管理</string>
   <string name="outline_extension_summary_empty">未選擇擴充功能</string>
   <string name="outline_extension_tip">大綱擴充功能勾選獨立儲存，不會影響聊天</string>
-
   <!-- ===== 潤色功能（polish feature）===== -->
   <string name="chat_message_polish">潤色</string>
   <string name="polish_dialog_title">潤色正文</string>
@@ -1146,5 +1145,15 @@
   <string name="assistant_polish_model_desc">留空跟隨目前聊天模型</string>
   <string name="assistant_polish_behavior_title">潤色行為</string>
   <string name="assistant_polish_behavior_desc">潤色與正文產生使用同一管線：包含完整上下文、擴充功能注入、記憶與工具；結果作為目標訊息的新增分支，原文保留可切回。</string>
+  <string name="outline_sheet_polish">潤色</string>
+  <string name="outline_sheet_undo">撤銷</string>
+  <string name="outline_sheet_redo">重做</string>
+  <string name="outline_sheet_polish_dialog_title">潤色大綱</string>
+  <string name="outline_sheet_polish_dialog_desc">描述對目前大綱的潤色要求，留空則使用通用潤色指令。潤色結果將覆蓋目前草稿，舊版可隨時撤銷恢復。</string>
+  <string name="error_outline_polish_model_not_found">找不到大綱潤色模型，請檢查助手大綱設定</string>
+  <string name="assistant_outline_polish_prompt">大綱潤色提示詞</string>
+  <string name="assistant_outline_polish_prompt_desc">大綱潤色範本。佔位符：{input} 為潤色指令，{locale} 為系統語言</string>
+  <string name="assistant_outline_polish_instruction">通用大綱潤色指令</string>
+  <string name="assistant_outline_polish_instruction_desc">潤色意見留空時使用</string>
 </resources>
 

@@ -8,6 +8,8 @@ import me.rerere.ai.provider.CustomHeader
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_OUTLINE_PROMPT
+import me.rerere.rikkahub.data.ai.prompts.DEFAULT_OUTLINE_POLISH_INSTRUCTION
+import me.rerere.rikkahub.data.ai.prompts.DEFAULT_OUTLINE_POLISH_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_POLISH_INSTRUCTION
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_POLISH_PROMPT
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
@@ -76,6 +78,10 @@ data class PolishConfig(
 data class OutlineConfig(
     val enabled: Boolean = false,                // 总开关
     val prompt: String = DEFAULT_OUTLINE_PROMPT, // 大纲生成提示词模板
+    // 大纲润色提示词模板：{input}=润色指令(意见或通用指令) / {locale}=系统语言；
+    // 模型跟随大纲生成模型（outlineConfig.modelId ?: 聊天模型），润色不单独配置
+    val polishPrompt: String = DEFAULT_OUTLINE_POLISH_PROMPT,
+    val polishDefaultInstruction: String = DEFAULT_OUTLINE_POLISH_INSTRUCTION, // 通用大纲润色指令（意见为空时使用）
     val modelId: Uuid? = null,                   // 大纲生成专用模型，null = 跟随当前聊天模型
     val quickMessageIds: Set<Uuid> = emptySet(),   // 大纲专用快捷消息勾选（独立于助手聊天的同名勾选）
     val modeInjectionIds: Set<Uuid> = emptySet(),  // 大纲专用模式注入勾选

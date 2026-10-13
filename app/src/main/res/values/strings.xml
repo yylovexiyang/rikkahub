@@ -1102,7 +1102,6 @@
   <string name="setting_model_page_prompt_suggestion">Chat Reply Suggestions</string>
   <string name="setting_model_page_prompt_ocr">OCR Recognition</string>
   <string name="setting_model_page_prompt_compress">Context Compression</string>
-
   <!-- ===== 大纲功能（outline feature）===== -->
   <string name="error_title_generate_outline">Generate outline failed</string>
   <string name="chat_input_outline">Outline</string>
@@ -1129,7 +1128,6 @@
   <string name="outline_extension_manage">Manage Extensions</string>
   <string name="outline_extension_summary_empty">No extensions selected</string>
   <string name="outline_extension_tip">Outline extensions are saved separately and do not affect chat</string>
-
   <!-- ===== 润色功能（polish feature）===== -->
   <string name="chat_message_polish">Polish</string>
   <string name="polish_dialog_title">Polish Body Text</string>
@@ -1147,5 +1145,15 @@
   <string name="assistant_polish_model_desc">Leave empty to follow the current chat model</string>
   <string name="assistant_polish_behavior_title">Behavior</string>
   <string name="assistant_polish_behavior_desc">Polishing runs in the same pipeline as body generation: full context, injections, memories and tools are included. The result is added as a new branch on the target message, and the original stays switchable.</string>
+  <string name="outline_sheet_polish">Polish</string>
+  <string name="outline_sheet_undo">Undo</string>
+  <string name="outline_sheet_redo">Redo</string>
+  <string name="outline_sheet_polish_dialog_title">Polish Outline</string>
+  <string name="outline_sheet_polish_dialog_desc">Describe how to improve the outline. Leave empty for the general polish instruction. The result replaces the draft; earlier versions can be restored via undo.</string>
+  <string name="error_outline_polish_model_not_found">Outline polish model not found, please check assistant outline settings</string>
+  <string name="assistant_outline_polish_prompt">Outline polish prompt</string>
+  <string name="assistant_outline_polish_prompt_desc">Template for polishing the outline draft. Placeholders: {input} for polish instruction, {locale} for system language</string>
+  <string name="assistant_outline_polish_instruction">General outline polish instruction</string>
+  <string name="assistant_outline_polish_instruction_desc">Used when the polish opinion is left empty</string>
 </resources>
 

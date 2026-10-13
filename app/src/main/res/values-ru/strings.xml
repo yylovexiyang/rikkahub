@@ -1130,7 +1130,6 @@
   <string name="outline_extension_manage">Управление расширениями</string>
   <string name="outline_extension_summary_empty">Расширения не выбраны</string>
   <string name="outline_extension_tip">Расширения плана сохраняются отдельно и не влияют на чат</string>
-
   <!-- ===== Функция полировки (polish feature) ===== -->
   <string name="chat_message_polish">Полировка</string>
   <string name="polish_dialog_title">Полировка текста</string>
@@ -1148,5 +1147,15 @@
   <string name="assistant_polish_model_desc">Оставьте пустым, чтобы следовать текущей модели чата</string>
   <string name="assistant_polish_behavior_title">Поведение полировки</string>
   <string name="assistant_polish_behavior_desc">Полировка выполняется в том же конвейере, что и генерация текста: с полным контекстом, инъекциями расширений, памятью и инструментами. Результат добавляется как новая ветка целевого сообщения, оригинал остаётся доступным.</string>
+  <string name="outline_sheet_polish">Полировка</string>
+  <string name="outline_sheet_undo">Отменить</string>
+  <string name="outline_sheet_redo">Повторить</string>
+  <string name="outline_sheet_polish_dialog_title">Полировка плана</string>
+  <string name="outline_sheet_polish_dialog_desc">Опишите, как улучшить план. Оставьте пустым, чтобы использовать общую инструкцию полировки. Результат заменит текущий черновик; предыдущие версии можно восстановить отменой.</string>
+  <string name="error_outline_polish_model_not_found">Модель полировки плана не найдена, проверьте настройки плана ассистента</string>
+  <string name="assistant_outline_polish_prompt">Промпт полировки плана</string>
+  <string name="assistant_outline_polish_prompt_desc">Шаблон полировки черновика плана. Плейсхолдеры: {input} — инструкция полировки, {locale} — язык системы</string>
+  <string name="assistant_outline_polish_instruction">Общая инструкция полировки плана</string>
+  <string name="assistant_outline_polish_instruction_desc">Используется, если мнение по полировке не указано</string>
 </resources>
 

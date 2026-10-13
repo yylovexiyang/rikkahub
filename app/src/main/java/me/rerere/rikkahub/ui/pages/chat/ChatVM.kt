@@ -285,6 +285,21 @@ class ChatVM(
         chatService.stopOutlineGeneration(_conversationId)
     }
 
+    // 对当前大纲草稿发起润色（意见为空走通用大纲润色指令，旧稿入撤销栈）
+    fun polishOutline(opinion: String) {
+        chatService.polishOutline(_conversationId, opinion)
+    }
+
+    // 撤销大纲草稿到上一版本（润色前旧稿）；流式中/无旧版时服务层静默忽略
+    fun undoOutlineDraft() {
+        chatService.undoOutlineDraft(_conversationId)
+    }
+
+    // 重做最近一次撤销的大纲草稿版本；流式中/无可重做时服务层静默忽略
+    fun redoOutlineDraft() {
+        chatService.redoOutlineDraft(_conversationId)
+    }
+
     fun saveConversationAsync() {
         viewModelScope.launch {
             chatService.saveConversation(_conversationId, conversation.value)

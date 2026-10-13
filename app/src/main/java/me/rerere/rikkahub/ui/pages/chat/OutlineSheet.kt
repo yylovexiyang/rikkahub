@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.pages.chat
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -39,16 +40,22 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.service.OutlineState
 import me.rerere.rikkahub.ui.components.message.ChatMessageReasoningStep
+import me.rerere.rikkahub.ui.components.message.PolishInputDialog
 import me.rerere.rikkahub.ui.components.ui.ChainOfThought
 
 /**
  * 大纲编辑底部弹层
  *
  * 上区为原始输入（可编辑后重新生成），下区为大纲草稿：
- * 生成中流式只读展示（伴随思考卡片）；完成后以草稿为初值转入可编辑。
+ * 生成/润色中流式只读展示（伴随思考卡片）；完成后以草稿为初值转入可编辑。
  * 中部内容区可垂直滚动，底部操作行固定——原始输入过长/键盘弹出导致
  * 内容超出可视高度时，草稿区与操作行不会被裁切遮挡，可滚动到达。
  * 确认后草稿原文作为用户消息发送（原始输入写入消息元数据）。
+ *
+ * 大纲润色：草稿标题行「润色」弹出意见对话框（可留空走通用润色指令），
+ * 确认后复用本弹窗流式管道以润色结果覆盖草稿；润色前的旧稿压入撤销栈，
+ * 标题行「撤销/重做」可在版本间往返切换。润色失败提示错误并支持重试
+ * （复跑同意见），重新生成则整体重置草稿并清空版本栈。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +64,9 @@ fun OutlineSheet(
     assistant: Assistant?, // 当前助手（思维链内容按助手可视化正则渲染）
     onDismiss: () -> Unit,
     onRegenerate: (rawInput: String) -> Unit,
+    onPolish: (opinion: String) -> Unit, // 按意见润色当前草稿（空白走通用润色指令）
+    onUndo: () -> Unit,                  // 撤销草稿到上一版本
+    onRedo: () -> Unit,                  // 重做最近一次撤销的版本
     onStop: () -> Unit,
     onConfirm: (draft: String, rawInput: String) -> Unit,
 ) {
@@ -72,10 +82,12 @@ fun OutlineSheet(
     val rawInputState = remember(state?.rawInput) {
         TextFieldState(initialText = state?.rawInput ?: "")
     }
-    // 草稿编辑态：仅在生成开始/结束时重建，完成后草稿稳定可自由编辑
-    val draftState = remember(state?.isGenerating) {
+    // 草稿编辑态：生成开始/结束（isGenerating 翻转）或撤销/重做切换版本（editEpoch 变化）时重建
+    val draftState = remember(state?.isGenerating, state?.editEpoch) {
         TextFieldState(initialText = state?.draft ?: "")
     }
+    // 润色意见对话框显隐：点「润色」弹出，确认后以意见发起润色
+    var showPolishDialog by remember { mutableStateOf(false) }
     val isGenerating = state?.isGenerating ?: false
     // 生成中的草稿/思维链快照：state 可能整个为 null，无法 smart cast，先取局部值
     val generatingDraft = state?.draft ?: ""
@@ -140,7 +152,7 @@ fun OutlineSheet(
                     lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 2, maxHeightInLines = 5),
                 )
 
-                // 大纲草稿标题行（生成中提供停止，完成后提供重新生成）
+                // 大纲草稿标题行（停止/撤销/重做/润色/重新生成；按钮压缩内边距避免行溢出）
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -150,13 +162,44 @@ fun OutlineSheet(
                         text = stringResource(R.string.outline_sheet_draft),
                         style = MaterialTheme.typography.labelLarge,
                     )
-                    if (isGenerating) {
-                        TextButton(onClick = onStop) {
-                            Text(stringResource(R.string.stop))
-                        }
-                    } else {
-                        TextButton(onClick = { onRegenerate(rawInputState.text.toString()) }) {
-                            Text(stringResource(R.string.outline_sheet_regenerate))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (isGenerating) {
+                            TextButton(
+                                onClick = onStop,
+                                contentPadding = PaddingValues(horizontal = 8.dp),
+                            ) {
+                                Text(stringResource(R.string.stop))
+                            }
+                        } else {
+                            // 撤销：有旧版可回退时显示；重做：有被撤版本时显示
+                            if (!state?.draftHistory.isNullOrEmpty()) {
+                                TextButton(
+                                    onClick = onUndo,
+                                    contentPadding = PaddingValues(horizontal = 8.dp),
+                                ) {
+                                    Text(stringResource(R.string.outline_sheet_undo))
+                                }
+                            }
+                            if (!state?.redoDrafts.isNullOrEmpty()) {
+                                TextButton(
+                                    onClick = onRedo,
+                                    contentPadding = PaddingValues(horizontal = 8.dp),
+                                ) {
+                                    Text(stringResource(R.string.outline_sheet_redo))
+                                }
+                            }
+                            TextButton(
+                                onClick = { showPolishDialog = true },
+                                contentPadding = PaddingValues(horizontal = 8.dp),
+                            ) {
+                                Text(stringResource(R.string.outline_sheet_polish))
+                            }
+                            TextButton(
+                                onClick = { onRegenerate(rawInputState.text.toString()) },
+                                contentPadding = PaddingValues(horizontal = 8.dp),
+                            ) {
+                                Text(stringResource(R.string.outline_sheet_regenerate))
+                            }
                         }
                     }
                 }
@@ -193,7 +236,13 @@ fun OutlineSheet(
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                         )
-                        TextButton(onClick = { onRegenerate(rawInputState.text.toString()) }) {
+                        // 重试：润色遗留态复跑同意见的润色，否则回退为用原始输入重新生成
+                        // （error 非空已隐含 state 非空，此处无需安全调用）
+                        TextButton(onClick = {
+                            val retryOpinion = state.lastPolishOpinion
+                            if (retryOpinion != null) onPolish(retryOpinion)
+                            else onRegenerate(rawInputState.text.toString())
+                        }) {
                             Text(stringResource(R.string.outline_sheet_retry))
                         }
                     }
@@ -230,6 +279,19 @@ fun OutlineSheet(
                 ) {
                     Text(stringResource(R.string.outline_sheet_confirm))
                 }
+            }
+
+            // 润色意见对话框：意见可留空（走通用大纲润色指令），确认后流式覆盖草稿
+            if (showPolishDialog) {
+                PolishInputDialog(
+                    title = stringResource(R.string.outline_sheet_polish_dialog_title),
+                    description = stringResource(R.string.outline_sheet_polish_dialog_desc),
+                    onDismiss = { showPolishDialog = false },
+                    onConfirm = { opinion ->
+                        showPolishDialog = false
+                        onPolish(opinion)
+                    },
+                )
             }
         }
     }

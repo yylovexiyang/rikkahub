@@ -22,26 +22,31 @@ import me.rerere.rikkahub.R
  *
  * 对已生成正文发起润色的入口：输入润色意见/要求后确认；意见可留空，
  * 留空时按助手配置的通用润色指令执行。产物以新分支写回消息节点（与重新生成一致）。
+ * 大纲润色也复用本对话框，通过 title/description 参数定制文案（覆盖草稿+可撤销语义）。
  *
  * @param onDismiss 关闭对话框（取消润色）
  * @param onConfirm 确认润色，参数为用户意见（可能为空白字符串）
+ * @param title 对话框标题；缺省为正文润色文案
+ * @param description 意见输入区说明；缺省为正文润色文案
  */
 @Composable
 fun PolishInputDialog(
     onDismiss: () -> Unit,
     onConfirm: (opinion: String) -> Unit,
+    title: String = stringResource(R.string.polish_dialog_title),
+    description: String = stringResource(R.string.polish_dialog_desc),
 ) {
     // 意见输入状态：确认时随回调传出，可为空
     val opinionState = rememberTextFieldState()
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.polish_dialog_title)) },
+        title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 // 说明：意见可留空，留空按通用润色执行
                 Text(
-                    text = stringResource(R.string.polish_dialog_desc),
+                    text = description,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

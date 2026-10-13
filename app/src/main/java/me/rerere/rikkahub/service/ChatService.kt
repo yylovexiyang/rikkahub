@@ -112,6 +112,9 @@ enum class ChatErrorSolution {
     CheckTitleModelSettings,
 }
 
+// 大纲草稿撤销栈上限：润色前的旧稿与撤销暂存的版本各保留最近 5 版，防止无限膨胀
+private const val OUTLINE_DRAFT_HISTORY_LIMIT = 5
+
 // 大纲生成状态（按会话隔离，仅内存态；确认大纲后即消费，不持久化）
 data class OutlineState(
     val rawInput: String = "",          // 生成大纲所用的用户原始输入
@@ -119,6 +122,12 @@ data class OutlineState(
     val reasoning: String = "",         // 流式累积的思维链（模型推理过程，弹窗内展示）
     val isGenerating: Boolean = false,  // 是否正在流式生成
     val error: Throwable? = null,       // 生成失败时的异常
+    val draftHistory: List<String> = emptyList(),  // 旧版草稿撤销栈（润色开始时压入上一版），撤销时弹出
+    val redoDrafts: List<String> = emptyList(),    // 撤销后暂存的被撤版本，重做时弹回
+    // 最近一次润色意见（供失败重试复跑同意见）；null = 当前错误态非润色遗留，重试回退重新生成
+    val lastPolishOpinion: String? = null,
+    // 草稿编辑态重建计数：撤销/重做弹出不同版本时 +1，弹窗以它为键重建草稿输入框
+    val editEpoch: Int = 0,
 )
 
 private val inputTransformers by lazy {
@@ -1247,6 +1256,184 @@ class ChatService(
         }
         outlineJobs[conversationId] = job
         return job
+    }
+
+    /**
+     * 按润色意见改写当前大纲草稿（大纲润色）
+     *
+     * 复用大纲轻量管线与弹窗流式展示：system prompt（含大纲扩展注入段）与大纲生成
+     * 同口径；对话历史末尾追加"当前草稿（assistant 消息）+ 润色指令（user 消息）"，
+     * 与正文润色的输入结构一致。开始前把旧草稿压入撤销栈并清空重做栈，意见空白时
+     * 回退大纲润色通用指令；模型跟随大纲生成模型（modelId ?: 聊天模型）。
+     *
+     * 与大纲生成共用 outlineJobs / OutlineState（生成与润色互斥，重复触发取消旧任务）。
+     *
+     * @param opinion 用户润色意见；空白时使用 outlineConfig.polishDefaultInstruction
+     */
+    fun polishOutline(conversationId: Uuid, opinion: String) {
+        // 与大纲生成/上一轮润色互斥：重复触发先取消旧任务
+        outlineJobs[conversationId]?.cancel()
+
+        // 草稿为空时无润色标的（弹窗入口已禁用，此处为服务层防御）
+        val stateBefore = _outlineStates.value[conversationId] ?: OutlineState()
+        if (stateBefore.draft.isBlank()) return
+        // 润色标的：开始时刻的草稿快照，作为上下文末尾的 assistant 消息
+        val currentDraft = stateBefore.draft
+
+        setOutlineState(conversationId) {
+            // 旧草稿压入撤销栈（上限 5，超出挤掉最老），清空重做侧；
+            // 记录本轮意见供失败重试；草稿/思维链重置由流式增量重建
+            it.copy(
+                isGenerating = true,
+                draft = "",
+                reasoning = "",
+                error = null,
+                lastPolishOpinion = opinion,
+                draftHistory = (it.draftHistory + currentDraft).takeLast(OUTLINE_DRAFT_HISTORY_LIMIT),
+                redoDrafts = emptyList(),
+            )
+        }
+
+        val job = appScope.launch {
+            // 与 generateOutline 相同的"是否仍是当前任务"身份判断供收尾阶段使用
+            val self = coroutineContext[Job] ?: error("No Job in outline coroutine context")
+            try {
+                val settings = settingsStore.settingsFlow.first()
+                val conversation = getConversationFlow(conversationId).value
+                val assistant = settings.getAssistantById(conversation.assistantId)
+                    ?: settings.getCurrentAssistant()
+
+                // 模型与大纲生成同口径：大纲专用模型优先，否则跟随当前聊天模型
+                val model =
+                    settings.findModelById(assistant.outlineConfig.modelId ?: assistant.chatModelId ?: settings.chatModelId)
+                        ?: throw IllegalStateException(
+                            context.getString(R.string.error_outline_polish_model_not_found)
+                        )
+                val provider = model.findProvider(settings.providers)
+                    ?: throw IllegalStateException("Provider not found")
+
+                // system prompt 与大纲生成一致：助手基础提示词（允许会话级覆盖）+ 扩展注入段
+                // 注入段触发扫描沿用润色标的对应的原始输入，保证润色与生成看到相同的扩展内容
+                val baseSystemPrompt = if (
+                    assistant.allowConversationSystemPrompt && !conversation.customSystemPrompt.isNullOrBlank()
+                ) {
+                    conversation.customSystemPrompt
+                } else {
+                    assistant.systemPrompt
+                }
+                val injectionPrompt = buildOutlineInjectionPrompt(
+                    assistant = assistant,
+                    settings = settings,
+                    rawInput = stateBefore.rawInput,
+                )
+                val systemPrompt = buildString {
+                    append(baseSystemPrompt)
+                    if (injectionPrompt.isNotBlank()) {
+                        if (isNotEmpty()) append("\n\n")
+                        append(injectionPrompt)
+                    }
+                }
+
+                // 润色指令：意见空白回退通用大纲润色指令，再按模板渲染 {input}/{locale} 占位符
+                val instruction = opinion.ifBlank { assistant.outlineConfig.polishDefaultInstruction }
+                val polishPrompt = assistant.outlineConfig.polishPrompt.applyPlaceholders(
+                    "input" to instruction,
+                    "locale" to Locale.getDefault().displayName,
+                )
+                val messages = buildList {
+                    if (systemPrompt.isNotBlank()) {
+                        add(UIMessage.system(prompt = systemPrompt))
+                    }
+                    // 尊重助手配置的上下文窗口限制（与大纲生成一致）
+                    addAll(
+                        conversation.currentMessages.limitContext(assistant.contextMessageSize)
+                    )
+                    // 当前草稿以助手消息身份收尾，润色指令随其后（模板中"本指令前最后一条助手消息"）
+                    add(UIMessage.assistant(prompt = currentDraft))
+                    add(UIMessage.user(prompt = polishPrompt))
+                }
+
+                val providerImpl = providerManager.getProviderByType(provider)
+                providerImpl.streamText(
+                    providerSetting = provider,
+                    messages = messages,
+                    params = TextGenerationParams(
+                        model = model,
+                        // 推理等级与大纲生成一致，跟随助手聊天配置
+                        reasoningLevel = assistant.reasoningLevel,
+                    ),
+                ).collect { chunk ->
+                    val deltaParts = chunk.choices.firstOrNull()?.delta?.parts ?: emptyList()
+                    // 润色结果增量 → 草稿（弹窗同一草稿区流式替换）
+                    val text = deltaParts
+                        .filterIsInstance<UIMessagePart.Text>()
+                        .joinToString("") { it.text }
+                    if (text.isNotEmpty()) {
+                        setOutlineState(conversationId) { it.copy(draft = it.draft + text) }
+                    }
+                    // 推理增量 → 思维链（弹窗内以思考卡片流式展示）
+                    val reasoning = deltaParts
+                        .filterIsInstance<UIMessagePart.Reasoning>()
+                        .joinToString("") { it.reasoning }
+                    if (reasoning.isNotEmpty()) {
+                        setOutlineState(conversationId) { it.copy(reasoning = it.reasoning + reasoning) }
+                    }
+                }
+
+                setOutlineState(conversationId) { it.copy(isGenerating = false) }
+            } catch (e: CancellationException) {
+                // 停止/重触发：仅当自己仍是该会话的当前任务时才清理状态（防止覆盖新任务状态）；
+                // 未完成的半截稿保留在草稿区，旧版在撤销栈内可撤回
+                if (outlineJobs[conversationId] == self) {
+                    setOutlineState(conversationId) { it.copy(isGenerating = false) }
+                }
+                throw e
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // 仅当自己仍是当前任务才记录错误（防止旧任务异常收尾污染重触发后的新状态）
+                if (outlineJobs[conversationId] == self) {
+                    setOutlineState(conversationId) { it.copy(isGenerating = false, error = e) }
+                }
+            } finally {
+                // 仅当自己是当前任务才移除，避免删除重触发写入的新任务
+                outlineJobs.remove(conversationId, self)
+            }
+        }
+        outlineJobs[conversationId] = job
+    }
+
+    /**
+     * 撤销大纲草稿到上一版本（润色前的旧稿）：当前被撤下的版本转入重做侧，
+     * 可重做回退。仅生成结束（非流式中）时有意义，流式中与服务层静默忽略。
+     */
+    fun undoOutlineDraft(conversationId: Uuid) {
+        setOutlineState(conversationId) {
+            // 流式中版本态不稳定，拒绝操作；无旧版可撤时保持原状
+            if (it.isGenerating || it.draftHistory.isEmpty()) return@setOutlineState it
+            it.copy(
+                redoDrafts = it.redoDrafts + it.draft,
+                draft = it.draftHistory.last(),
+                draftHistory = it.draftHistory.dropLast(1),
+                // 版本切换时 bump 编辑态重建计数，弹窗据此重建草稿输入框内容
+                editEpoch = it.editEpoch + 1,
+            )
+        }
+    }
+
+    /**
+     * 重做最近一次撤销的大纲草稿版本：弹回的版本重新压回撤销栈，
+     * 撤销/重做可往返切换。仅生成结束后可用，流式中静默忽略。
+     */
+    fun redoOutlineDraft(conversationId: Uuid) {
+        setOutlineState(conversationId) {
+            if (it.isGenerating || it.redoDrafts.isEmpty()) return@setOutlineState it
+            it.copy(
+                draftHistory = (it.draftHistory + it.draft).takeLast(OUTLINE_DRAFT_HISTORY_LIMIT),
+                draft = it.redoDrafts.last(),
+                redoDrafts = it.redoDrafts.dropLast(1),
+                editEpoch = it.editEpoch + 1,
+            )
+        }
     }
 
     /**

@@ -467,6 +467,15 @@ private fun ChatPageContent(
             onRegenerate = { rawInput ->
                 vm.generateOutline(rawInput)
             },
+            onPolish = { opinion ->
+                vm.polishOutline(opinion)
+            },
+            onUndo = {
+                vm.undoOutlineDraft()
+            },
+            onRedo = {
+                vm.redoOutlineDraft()
+            },
             onStop = {
                 vm.stopOutlineGeneration()
             },

@@ -121,6 +121,57 @@ fun AssistantOutlinePage(id: String) {
                 }
             }
             item {
+                // 大纲润色提示词模板（{input}=润色指令(意见或通用指令) / {locale}=系统语言）
+                // 润色模型跟随大纲生成模型，不单独配置
+                Card(colors = CustomColors.cardColorsOnSurfaceContainer) {
+                    FormItem(
+                        modifier = Modifier.padding(8.dp),
+                        label = { Text(stringResource(R.string.assistant_outline_polish_prompt)) },
+                        description = { Text(stringResource(R.string.assistant_outline_polish_prompt_desc)) },
+                        content = {
+                            OutlinedTextField(
+                                value = outlineConfig.polishPrompt,
+                                onValueChange = { polishPrompt ->
+                                    vm.update(
+                                        assistant.copy(
+                                            outlineConfig = outlineConfig.copy(polishPrompt = polishPrompt)
+                                        )
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                minLines = 5,
+                                maxLines = 15,
+                            )
+                        }
+                    )
+                }
+            }
+            item {
+                // 通用大纲润色指令：润色意见留空时使用
+                Card(colors = CustomColors.cardColorsOnSurfaceContainer) {
+                    FormItem(
+                        modifier = Modifier.padding(8.dp),
+                        label = { Text(stringResource(R.string.assistant_outline_polish_instruction)) },
+                        description = { Text(stringResource(R.string.assistant_outline_polish_instruction_desc)) },
+                        content = {
+                            OutlinedTextField(
+                                value = outlineConfig.polishDefaultInstruction,
+                                onValueChange = { instruction ->
+                                    vm.update(
+                                        assistant.copy(
+                                            outlineConfig = outlineConfig.copy(polishDefaultInstruction = instruction)
+                                        )
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                minLines = 4,
+                                maxLines = 10,
+                            )
+                        }
+                    )
+                }
+            }
+            item {
                 // 大纲生成模型（清除后回退为跟随当前聊天模型）
                 Card(colors = CustomColors.cardColorsOnSurfaceContainer) {
                     FormItem(
