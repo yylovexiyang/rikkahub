@@ -1130,5 +1130,23 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="outline_extension_manage">扩展管理</string>
   <string name="outline_extension_summary_empty">未选择扩展</string>
   <string name="outline_extension_tip">大纲扩展勾选独立保存，不会影响聊天</string>
+
+  <!-- ===== 润色功能（polish feature）===== -->
+  <string name="chat_message_polish">润色</string>
+  <string name="polish_dialog_title">润色正文</string>
+  <string name="polish_dialog_desc">描述对当前正文的润色要求，留空则使用通用润色指令。润色结果将作为新分支新增（与重新生成一致），原文可随时切回。</string>
+  <string name="polish_dialog_confirm">开始润色</string>
+  <string name="error_title_polish_message">润色失败</string>
+  <string name="error_polish_model_not_found">未找到润色模型，请检查助手润色设置</string>
+  <string name="assistant_polish">润色</string>
+  <string name="assistant_detail_polish_desc">对已生成正文按意见润色改写</string>
+  <string name="assistant_polish_prompt">润色提示词</string>
+  <string name="assistant_polish_prompt_desc">润色生成模板。占位符：{input}=润色指令，{locale}=系统语言</string>
+  <string name="assistant_polish_instruction">通用润色指令</string>
+  <string name="assistant_polish_instruction_desc">润色意见留空时使用</string>
+  <string name="assistant_polish_model">润色模型</string>
+  <string name="assistant_polish_model_desc">留空跟随当前聊天模型</string>
+  <string name="assistant_polish_behavior_title">润色行为</string>
+  <string name="assistant_polish_behavior_desc">润色与正文生成使用同一管线：包含完整上下文、扩展注入、记忆与工具；结果作为目标消息的新增分支，原文保留可切回。</string>
 </resources>
 

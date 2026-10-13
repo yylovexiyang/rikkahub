@@ -1129,5 +1129,23 @@
   <string name="outline_extension_manage">Manage Extensions</string>
   <string name="outline_extension_summary_empty">No extensions selected</string>
   <string name="outline_extension_tip">Outline extensions are saved separately and do not affect chat</string>
+
+  <!-- ===== 润色功能（polish feature）===== -->
+  <string name="chat_message_polish">Polish</string>
+  <string name="polish_dialog_title">Polish Body Text</string>
+  <string name="polish_dialog_desc">Describe how to polish the current body text. Leave empty to use the general polish instruction. The polished text will be added as a new branch, like regenerate.</string>
+  <string name="polish_dialog_confirm">Start Polishing</string>
+  <string name="error_title_polish_message">Polish failed</string>
+  <string name="error_polish_model_not_found">Polish model not found, please check assistant polish settings</string>
+  <string name="assistant_polish">Polish</string>
+  <string name="assistant_detail_polish_desc">Polish generated body text with instructions</string>
+  <string name="assistant_polish_prompt">Polish prompt</string>
+  <string name="assistant_polish_prompt_desc">Template for polish generation. Placeholders: {input} for polish instruction, {locale} for system language</string>
+  <string name="assistant_polish_instruction">General polish instruction</string>
+  <string name="assistant_polish_instruction_desc">Used when the polish opinion is left empty</string>
+  <string name="assistant_polish_model">Polish model</string>
+  <string name="assistant_polish_model_desc">Leave empty to follow the current chat model</string>
+  <string name="assistant_polish_behavior_title">Behavior</string>
+  <string name="assistant_polish_behavior_desc">Polishing runs in the same pipeline as body generation: full context, injections, memories and tools are included. The result is added as a new branch on the target message, and the original stays switchable.</string>
 </resources>
 

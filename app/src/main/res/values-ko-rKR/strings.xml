@@ -1130,5 +1130,23 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="outline_extension_manage">확장 프로그램 관리</string>
   <string name="outline_extension_summary_empty">선택된 확장 프로그램이 없습니다</string>
   <string name="outline_extension_tip">개요 확장 프로그램은 독립적으로 저장되며 채팅에 영향을 주지 않습니다</string>
+
+  <!-- ===== 윤문 기능（polish feature）===== -->
+  <string name="chat_message_polish">윤문</string>
+  <string name="polish_dialog_title">본문 윤문</string>
+  <string name="polish_dialog_desc">현재 본문에 대한 윤문 요구사항을 입력하세요. 비워두면 일반 윤문 지시가 사용됩니다. 윤문 결과는 새 분기로 추가되며(다시 생성과 동일) 원문은 언제든지 전환할 수 있습니다.</string>
+  <string name="polish_dialog_confirm">윤문 시작</string>
+  <string name="error_title_polish_message">윤문 실패</string>
+  <string name="error_polish_model_not_found">윤문 모델을 찾을 수 없습니다. 어시스턴트의 윤문 설정을 확인하세요</string>
+  <string name="assistant_polish">윤문</string>
+  <string name="assistant_detail_polish_desc">생성된 본문을 요구사항에 따라 윤문</string>
+  <string name="assistant_polish_prompt">윤문 프롬프트</string>
+  <string name="assistant_polish_prompt_desc">윤문 생성 템플릿. 자리표시자: {input}=윤문 지시, {locale}=시스템 언어</string>
+  <string name="assistant_polish_instruction">일반 윤문 지시</string>
+  <string name="assistant_polish_instruction_desc">윤문 의견을 비워둘 때 사용</string>
+  <string name="assistant_polish_model">윤문 모델</string>
+  <string name="assistant_polish_model_desc">비워두면 현재 채팅 모델을 따릅니다</string>
+  <string name="assistant_polish_behavior_title">윤문 동작</string>
+  <string name="assistant_polish_behavior_desc">윤문은 본문 생성과 동일한 파이프라인으로 실행됩니다: 전체 컨텍스트, 확장 주입, 메모리 및 도구가 포함됩니다. 결과는 대상 메시지의 새 분기로 추가되며 원문은 전환 가능합니다.</string>
 </resources>
 

@@ -81,6 +81,7 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantAffectScope
+import me.rerere.rikkahub.data.model.AssistantMemory
 import me.rerere.rikkahub.data.model.isTriggered
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.data.model.toMessageNode
@@ -432,6 +433,199 @@ class ChatService(
         session.setJob(job)
     }
 
+    // ---- 润色消息 ----
+
+    /**
+     * 润色已生成的正文（assistant 消息）
+     *
+     * 管线与正文生成完全一致（generationHandler.generateText）：相同的 system prompt
+     * 组装（助手/会话覆盖 + 记忆 + 工具提示词）、inputTransformers（模式注入/世界书/
+     * 模板等）、tools 与推理等级、上下文截断 limitContext。输入消息在正文之外
+     * 额外追加"原正文 + 润色指令"两条，让模型基于原正文与意见改写。
+     *
+     * 写回表现与重新生成一致：流式内容作为目标节点的新增分支（selectIndex 切至
+     * 新分支渲染），原正文保留可切回；意见为空时使用 polishConfig.defaultInstruction
+     * 做通用润色，模型/提示词均取自 assistant.polishConfig。
+     *
+     * @param message 要润色的正文消息（其所在节点的新增分支承载润色结果）
+     * @param opinion 用户润色意见；空白时回退通用润色指令
+     */
+    fun polishMessage(
+        conversationId: Uuid,
+        message: UIMessage,
+        opinion: String,
+    ) {
+        // 仅正文（assistant 消息）可润色
+        if (message.role != MessageRole.ASSISTANT) return
+
+        val session = getOrCreateSession(conversationId)
+        session.getJob()?.cancel()
+
+        val job = appScope.launch {
+            try {
+                val conversation = session.state.value
+                val settings = settingsStore.settingsFlow.first()
+                val assistant = settings.getAssistantById(conversation.assistantId)
+                    ?: settings.getCurrentAssistant()
+
+                // 定位目标节点
+                val targetNode = conversation.getMessageNodeByMessage(message) ?: return@launch
+                val nodeIndex = conversation.messageNodes.indexOf(targetNode)
+
+                // 模型：润色专用模型优先，否则跟随当前聊天模型（与正文生成同口径）
+                // 先校验模型再写入占位分支，避免失败时遗留空分支
+                val model =
+                    settings.findModelById(assistant.polishConfig.modelId ?: assistant.chatModelId ?: settings.chatModelId)
+                        ?: throw IllegalStateException(
+                            context.getString(R.string.error_polish_model_not_found)
+                        )
+
+                // 新分支占位消息（空文本载体），流式期间按此 id 回写增量内容
+                val polishedMessage = UIMessage(
+                    role = MessageRole.ASSISTANT,
+                    parts = listOf(UIMessagePart.Text("")),
+                )
+                // 目标节点追加分支并切换选中，气泡内渲染流式（与重新生成一致）
+                updateConversation(
+                    conversationId,
+                    conversation.copy(
+                        messageNodes = conversation.messageNodes.mapIndexed { index, node ->
+                            if (index == nodeIndex) {
+                                node.copy(
+                                    messages = node.messages + polishedMessage,
+                                    selectIndex = node.messages.size,
+                                )
+                            } else {
+                                node
+                            }
+                        }
+                    )
+                )
+
+                // 润色输入：目标节点之前的上下文（正文生成同源）+ 原正文 + 润色指令用户消息
+                val polishInput = buildPolishInstruction(assistant, opinion)
+                val inputMessages = conversation.currentMessages.take(nodeIndex) +
+                    message +
+                    listOf(UIMessage.user(prompt = polishInput))
+
+                val modelSenderName = if (assistant.useAssistantAvatar) {
+                    assistant.name.ifEmpty { context.getString(R.string.assistant_page_default_assistant) }
+                } else {
+                    model.displayName
+                }
+
+                generationHandler.generateText(
+                    settings = settings,
+                    model = model,
+                    messages = inputMessages,
+                    // 与正文生成相同的输入管线：模式注入/世界书等扩展随助手与会话勾选自动生效
+                    inputTransformers = buildList {
+                        addAll(inputTransformers)
+                        add(templateTransformer)
+                    },
+                    outputTransformers = outputTransformers,
+                    assistant = assistant,
+                    conversationSystemPrompt = conversation.customSystemPrompt,
+                    conversationModeInjectionIds = conversation.modeInjectionIds,
+                    conversationLorebookIds = conversation.lorebookIds,
+                    memories = getAssistantMemories(assistant),
+                    tools = buildGenerationTools(settings, assistant),
+                    processingStatus = session.processingStatus,
+                ).onCompletion {
+                    // 与正文生成路径相同的收尾：取消通知 + finishReasoning 兜底更新
+                    cancelLiveUpdateNotification(conversationId)
+
+                    val updatedConversation = getConversationFlow(conversationId).value.copy(
+                        messageNodes = getConversationFlow(conversationId).value.messageNodes.map { node ->
+                            node.copy(messages = node.messages.map { it.finishReasoning() })
+                        },
+                        updateAt = Instant.now()
+                    )
+                    updateConversation(conversationId, updatedConversation)
+
+                    // 应用不在前台时发送完成通知（与正文生成一致）
+                    if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration) {
+                        sendGenerationDoneNotification(conversationId, modelSenderName)
+                    }
+                }.collect { chunk ->
+                    when (chunk) {
+                        is GenerationChunk.Messages -> {
+                            // chunk.messages.last() 即流式中的润色正文；按占位 id 写回目标节点分支
+                            val polished = chunk.messages.lastOrNull() ?: return@collect
+                            if (polished.role != MessageRole.ASSISTANT) return@collect
+                            writeBackPolishedMessage(
+                                conversationId = conversationId,
+                                nodeIndex = nodeIndex,
+                                branchMessageId = polishedMessage.id,
+                                newMessage = polished,
+                            )
+                        }
+                    }
+                }
+
+                // 生成成功：持久化
+                saveConversation(conversationId, getConversationFlow(conversationId).value)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // 失败时保留占位分支中已生成的部分内容（与重新生成被停止的行为一致）
+                addError(e, conversationId, title = context.getString(R.string.error_title_polish_message))
+            }
+        }
+
+        session.setJob(job)
+    }
+
+    /**
+     * 构建润色指令：意见非空原文使用；空白时回退助手配置的通用润色指令，
+     * 并以 polishConfig.prompt 为模板渲染 {input}/{locale} 占位符
+     */
+    private fun buildPolishInstruction(
+        assistant: Assistant,
+        opinion: String,
+    ): String {
+        val instruction = opinion.ifBlank { assistant.polishConfig.defaultInstruction }
+        return assistant.polishConfig.prompt.applyPlaceholders(
+            "input" to instruction,
+            "locale" to Locale.getDefault().displayName,
+        )
+    }
+
+    /**
+     * 将润色结果写回目标节点的新分支（按分支消息 id 替换，selectIndex 指向该分支）。
+     * 每次取最新会话态写回，避免与标题生成等并发更新互相覆盖。
+     */
+    private fun writeBackPolishedMessage(
+        conversationId: Uuid,
+        nodeIndex: Int,
+        branchMessageId: Uuid,
+        newMessage: UIMessage,
+    ) {
+        val latest = getConversationFlow(conversationId).value
+        val updatedConversation = latest.copy(
+            messageNodes = latest.messageNodes.mapIndexed { index, node ->
+                if (index == nodeIndex) {
+                    val messages = node.messages.map { message ->
+                        if (message.id == branchMessageId) {
+                            // 保留占位消息的分支身份（id），内容/元数据取流式结果
+                            newMessage.copy(id = branchMessageId)
+                        } else {
+                            message
+                        }
+                    }
+                    node.copy(
+                        messages = messages,
+                        selectIndex = messages.indexOfFirst { it.id == branchMessageId }
+                            .takeIf { it >= 0 } ?: node.selectIndex,
+                    )
+                } else {
+                    node
+                }
+            }
+        )
+        updateConversation(conversationId, updatedConversation)
+    }
+
     // ---- 处理工具调用审批 ----
 
     fun handleToolApproval(
@@ -550,44 +744,13 @@ class ChatService(
                 conversationSystemPrompt = conversation.customSystemPrompt,
                 conversationModeInjectionIds = conversation.modeInjectionIds,
                 conversationLorebookIds = conversation.lorebookIds,
-                memories = if (assistant.useGlobalMemory) {
-                    memoryRepository.getGlobalMemories()
-                } else {
-                    memoryRepository.getMemoriesOfAssistant(assistant.id.toString())
-                },
+                memories = getAssistantMemories(assistant),
                 inputTransformers = buildList {
                     addAll(inputTransformers)
                     add(templateTransformer)
                 },
                 outputTransformers = outputTransformers,
-                tools = buildList {
-                    if (settings.enableWebSearch) {
-                        addAll(createSearchTools(settings))
-                    }
-                    addAll(localTools.getTools(assistant.localTools))
-                    if (assistant.enabledSkills.isNotEmpty()) {
-                        addAll(
-                            createSkillTools(
-                                enabledSkills = assistant.enabledSkills,
-                                allSkills = skillManager.listSkills(),
-                                skillManager = skillManager,
-                            )
-                        )
-                    }
-                    mcpManager.getAllAvailableTools().forEach { (serverId, tool) ->
-                        add(
-                            Tool(
-                                name = "mcp__" + tool.name,
-                                description = tool.description ?: "",
-                                parameters = { tool.inputSchema },
-                                needsApproval = tool.needsApproval,
-                                execute = {
-                                    mcpManager.callTool(serverId, tool.name, it.jsonObject)
-                                },
-                            )
-                        )
-                    }
-                },
+                tools = buildGenerationTools(settings, assistant),
             ).onCompletion {
                 // 取消 Live Update 通知
                 cancelLiveUpdateNotification(conversationId)
@@ -641,6 +804,50 @@ class ChatService(
     }
 
     // ---- 检查无效消息 ----
+
+    // 按助手配置获取记忆（全局共享或助手隔离），正文生成与润色共用
+    private suspend fun getAssistantMemories(assistant: Assistant): List<AssistantMemory> {
+        return if (assistant.useGlobalMemory) {
+            memoryRepository.getGlobalMemories()
+        } else {
+            memoryRepository.getMemoriesOfAssistant(assistant.id.toString())
+        }
+    }
+
+    // 构建正文生成完整工具集（搜索/本地工具/Skills/MCP），正文生成与润色共用，保持管线一致
+    private suspend fun buildGenerationTools(
+        settings: Settings,
+        assistant: Assistant,
+    ): List<Tool> {
+        return buildList {
+            if (settings.enableWebSearch) {
+                addAll(createSearchTools(settings))
+            }
+            addAll(localTools.getTools(assistant.localTools))
+            if (assistant.enabledSkills.isNotEmpty()) {
+                addAll(
+                    createSkillTools(
+                        enabledSkills = assistant.enabledSkills,
+                        allSkills = skillManager.listSkills(),
+                        skillManager = skillManager,
+                    )
+                )
+            }
+            mcpManager.getAllAvailableTools().forEach { (serverId, tool) ->
+                add(
+                    Tool(
+                        name = "mcp__" + tool.name,
+                        description = tool.description ?: "",
+                        parameters = { tool.inputSchema },
+                        needsApproval = tool.needsApproval,
+                        execute = {
+                            mcpManager.callTool(serverId, tool.name, it.jsonObject)
+                        },
+                    )
+                )
+            }
+        }
+    }
 
     private fun checkInvalidMessages(conversationId: Uuid) {
         val conversation = getConversationFlow(conversationId).value

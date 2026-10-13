@@ -1130,5 +1130,23 @@
   <string name="outline_extension_manage">Управление расширениями</string>
   <string name="outline_extension_summary_empty">Расширения не выбраны</string>
   <string name="outline_extension_tip">Расширения плана сохраняются отдельно и не влияют на чат</string>
+
+  <!-- ===== Функция полировки (polish feature) ===== -->
+  <string name="chat_message_polish">Полировка</string>
+  <string name="polish_dialog_title">Полировка текста</string>
+  <string name="polish_dialog_desc">Опишите требования к полировке текущего текста, оставьте пустым для общего указания по полировке. Результат будет добавлен как новая ветка (как при повторной генерации), исходный текст останется доступным.</string>
+  <string name="polish_dialog_confirm">Начать полировку</string>
+  <string name="error_title_polish_message">Ошибка полировки</string>
+  <string name="error_polish_model_not_found">Модель полировки не найдена, проверьте настройки полировки ассистента</string>
+  <string name="assistant_polish">Полировка</string>
+  <string name="assistant_detail_polish_desc">Полировка сгенерированного текста по требованию</string>
+  <string name="assistant_polish_prompt">Промпт полировки</string>
+  <string name="assistant_polish_prompt_desc">Шаблон полировки. Плейсхолдеры: {input}=указание по полировке, {locale}=язык системы</string>
+  <string name="assistant_polish_instruction">Общее указание по полировке</string>
+  <string name="assistant_polish_instruction_desc">Используется, если мнение по полировке оставлено пустым</string>
+  <string name="assistant_polish_model">Модель полировки</string>
+  <string name="assistant_polish_model_desc">Оставьте пустым, чтобы следовать текущей модели чата</string>
+  <string name="assistant_polish_behavior_title">Поведение полировки</string>
+  <string name="assistant_polish_behavior_desc">Полировка выполняется в том же конвейере, что и генерация текста: с полным контекстом, инъекциями расширений, памятью и инструментами. Результат добавляется как новая ветка целевого сообщения, оригинал остаётся доступным.</string>
 </resources>
 

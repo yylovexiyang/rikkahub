@@ -25,6 +25,9 @@ import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_COMPRESS_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_OCR_PROMPT
+import me.rerere.rikkahub.data.ai.prompts.DEFAULT_OUTLINE_PROMPT
+import me.rerere.rikkahub.data.ai.prompts.DEFAULT_POLISH_INSTRUCTION
+import me.rerere.rikkahub.data.ai.prompts.DEFAULT_POLISH_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_SUGGESTION_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TITLE_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TRANSLATION_PROMPT
@@ -53,6 +56,12 @@ import org.koin.core.component.get
 import kotlin.uuid.Uuid
 
 private const val TAG = "PreferencesStore"
+
+// 旧版英文默认提示词（大纲/润色功能初版内置值）：仅用于把已保存的旧默认迁移为新中文默认，
+// 与现行 DEFAULT_* 常量分离，迁移判断完成后即无其他用途
+private const val LEGACY_DEFAULT_OUTLINE_PROMPT = "Before completing the task, based on the conversation context and system locale ({locale}), first create a clear outline for the following request:\n{input}\n\nRequirements: output only the outline, organized as numbered items covering the key steps/sections of the task, keep it concise. Write the outline content in {locale} language."
+private const val LEGACY_DEFAULT_POLISH_PROMPT = "Based on the conversation context above and the system locale ({locale}), polish/rewrite the body text written by the assistant (the last assistant message before this instruction) without changing the direction of the story.\n\nPolish instructions:\n{input}\n\nRequirements: output only the complete polished body text, without any explanations, annotations or meta-information; keep the plot, facts and characters consistent with the conversation context; write the polished body text in {locale} language."
+private const val LEGACY_DEFAULT_POLISH_INSTRUCTION = "No special instructions. Please polish the body text comprehensively: improve wording, expressions, sentence flow and rhythm, remove redundancy, and enhance immersion, while preserving the original meaning, plot and information."
 
 private val Context.settingsStore by preferencesDataStore(
     name = "settings",
@@ -331,6 +340,41 @@ class SettingsStore(
                 lorebooks = settings.lorebooks.distinctBy { it.id },
                 quickMessages = settings.quickMessages.distinctBy { it.id },
             )
+        }
+        .map { settings ->
+            // 迁移：大纲/润色功能初版的英文默认提示词 → 中文默认提示词。
+            // 仅当对应字段与旧英文默认完全一致（即用户未自定义）时替换，自定义内容不受影响
+            val assistants = settings.assistants.map { assistant ->
+                val outlinePrompt =
+                    if (assistant.outlineConfig.prompt == LEGACY_DEFAULT_OUTLINE_PROMPT) {
+                        DEFAULT_OUTLINE_PROMPT
+                    } else {
+                        assistant.outlineConfig.prompt
+                    }
+                val polishPrompt =
+                    if (assistant.polishConfig.prompt == LEGACY_DEFAULT_POLISH_PROMPT) {
+                        DEFAULT_POLISH_PROMPT
+                    } else {
+                        assistant.polishConfig.prompt
+                    }
+                val polishInstruction =
+                    if (assistant.polishConfig.defaultInstruction == LEGACY_DEFAULT_POLISH_INSTRUCTION) {
+                        DEFAULT_POLISH_INSTRUCTION
+                    } else {
+                        assistant.polishConfig.defaultInstruction
+                    }
+                assistant.copy(
+                    // 空白字段（旧数据缺省）直接采用新中文默认值，确保默认行为为中文
+                    outlineConfig = assistant.outlineConfig.copy(
+                        prompt = outlinePrompt.ifBlank { DEFAULT_OUTLINE_PROMPT }
+                    ),
+                    polishConfig = assistant.polishConfig.copy(
+                        prompt = polishPrompt.ifBlank { DEFAULT_POLISH_PROMPT },
+                        defaultInstruction = polishInstruction.ifBlank { DEFAULT_POLISH_INSTRUCTION },
+                    ),
+                )
+            }
+            settings.copy(assistants = assistants)
         }
         .onEach {
             get<PebbleEngine>().templateCache.invalidateAll()

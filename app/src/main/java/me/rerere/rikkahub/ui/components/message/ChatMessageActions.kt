@@ -41,6 +41,7 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.AiMagic
 import me.rerere.hugeicons.stroke.Clipboard
 import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.Delete01
@@ -75,11 +76,14 @@ fun ColumnScope.ChatMessageActionButtons(
     onOpenActionSheet: () -> Unit,
     onTranslate: ((UIMessage, Locale) -> Unit)? = null,
     onClearTranslation: (UIMessage) -> Unit = {},
+    onPolish: (UIMessage, String) -> Unit = { _, _ -> },
 ) {
     val context = LocalContext.current
     var isPendingDelete by remember { mutableStateOf(false) }
     var showTranslateDialog by remember { mutableStateOf(false) }
     var showRegenerateConfirm by remember { mutableStateOf(false) }
+    // 润色意见输入框显隐（润色产物为新分支，与重新生成一致）
+    var showPolishDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(isPendingDelete) {
         if (isPendingDelete) {
@@ -198,6 +202,24 @@ fun ColumnScope.ChatMessageActionButtons(
                     tint = actionIconColor
                 )
             }
+
+            // 润色按钮：弹出意见框对正文润色，产物以新分支写回（与重新生成一致）
+            Icon(
+                imageVector = HugeIcons.AiMagic,
+                contentDescription = stringResource(R.string.chat_message_polish),
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = LocalIndication.current,
+                        onClick = {
+                            showPolishDialog = true
+                        }
+                    )
+                    .padding(8.dp)
+                    .size(16.dp),
+                tint = actionIconColor
+            )
         }
 
         Icon(
@@ -253,6 +275,17 @@ fun ColumnScope.ChatMessageActionButtons(
         onDismiss = { showRegenerateConfirm = false },
         text = { Text(stringResource(R.string.regenerate_confirm_message)) }
     )
+
+    // 润色意见输入对话框：确认后携带意见发起润色（空意见走通用润色）
+    if (showPolishDialog) {
+        PolishInputDialog(
+            onDismiss = { showPolishDialog = false },
+            onConfirm = { opinion ->
+                showPolishDialog = false
+                onPolish(message, opinion)
+            }
+        )
+    }
 }
 
 @Composable

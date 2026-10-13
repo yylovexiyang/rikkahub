@@ -428,6 +428,9 @@ private fun ChatPageContent(
                 onClearTranslation = { message ->
                     vm.clearTranslationField(message.id)
                 },
+                onPolish = { message, opinion ->
+                    vm.polishMessage(message, opinion)
+                },
                 onJumpToMessage = { index ->
                     previewMode = false
                     scope.launch {

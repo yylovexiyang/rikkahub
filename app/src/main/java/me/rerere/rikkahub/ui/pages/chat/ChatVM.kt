@@ -246,6 +246,12 @@ class ChatVM(
         chatService.regenerateAtMessage(_conversationId, message, regenerateAssistantMsg)
     }
 
+    // 对已生成正文发起润色（意见为空走通用润色，产物以新分支写回）
+    fun polishMessage(message: UIMessage, opinion: String) {
+        analytics.logEvent("ai_polish_message", null)
+        chatService.polishMessage(_conversationId, message, opinion)
+    }
+
     fun handleToolApproval(
         toolCallId: String,
         approved: Boolean,

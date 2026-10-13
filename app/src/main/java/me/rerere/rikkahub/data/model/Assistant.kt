@@ -8,6 +8,8 @@ import me.rerere.ai.provider.CustomHeader
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_OUTLINE_PROMPT
+import me.rerere.rikkahub.data.ai.prompts.DEFAULT_POLISH_INSTRUCTION
+import me.rerere.rikkahub.data.ai.prompts.DEFAULT_POLISH_PROMPT
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import kotlin.uuid.Uuid
 
@@ -46,6 +48,21 @@ data class Assistant(
     val allowConversationSystemPrompt: Boolean = false, // 允许对话单独重写 system prompt
     val allowConversationPromptInjection: Boolean = false, // 允许对话单独绑定提示词注入
     val outlineConfig: OutlineConfig = OutlineConfig(), // 大纲功能配置（助手级）
+    val polishConfig: PolishConfig = PolishConfig(), // 润色功能配置（助手级）
+)
+
+/**
+ * 润色功能配置（助手级单配置）
+ *
+ * 对助手已生成的正文发起润色：管线与正文生成完全一致（相同 system prompt 组装、
+ * 扩展注入、上下文截断），产物以新增分支写回目标消息节点（与重新生成一致）。
+ * 意见为空时使用 defaultInstruction 做通用润色；两者均可自定义。
+ */
+@Serializable
+data class PolishConfig(
+    val prompt: String = DEFAULT_POLISH_PROMPT,             // 润色提示词模板（{input}=润色指令 / {locale}=系统语言）
+    val defaultInstruction: String = DEFAULT_POLISH_INSTRUCTION, // 通用润色指令（意见为空时使用）
+    val modelId: Uuid? = null,                              // 润色专用模型，null = 跟随当前聊天模型
 )
 
 /**

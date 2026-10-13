@@ -1130,5 +1130,23 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="outline_extension_manage">拡張機能の管理</string>
   <string name="outline_extension_summary_empty">拡張機能が未選択です</string>
   <string name="outline_extension_tip">アウトラインの拡張機能は独立して保存され、チャットには影響しません</string>
+
+  <!-- ===== 润色機能（polish feature）===== -->
+  <string name="chat_message_polish">リライト</string>
+  <string name="polish_dialog_title">本文をリライト</string>
+  <string name="polish_dialog_desc">現在の本文へのリライト要望を入力してください。空欄の場合は汎用リライト指示が使用されます。リライト結果は新規ブランチとして追加され（再生成と同様）、元の本文はいつでも切り替えられます。</string>
+  <string name="polish_dialog_confirm">リライト開始</string>
+  <string name="error_title_polish_message">リライトに失敗しました</string>
+  <string name="error_polish_model_not_found">リライトモデルが見つかりません。アシスタントのリライト設定を確認してください</string>
+  <string name="assistant_polish">リライト</string>
+  <string name="assistant_detail_polish_desc">生成済み本文を意見ベースでリライト</string>
+  <string name="assistant_polish_prompt">リライトプロンプト</string>
+  <string name="assistant_polish_prompt_desc">リライト生成のテンプレート。プレースホルダー：{input}=リライト指示、{locale}=システム言語</string>
+  <string name="assistant_polish_instruction">汎用リライト指示</string>
+  <string name="assistant_polish_instruction_desc">リライト意見が空欄の場合に使用</string>
+  <string name="assistant_polish_model">リライトモデル</string>
+  <string name="assistant_polish_model_desc">空欄の場合は現在のチャットモデルに従います</string>
+  <string name="assistant_polish_behavior_title">リライト動作</string>
+  <string name="assistant_polish_behavior_desc">リライトは本文生成と同一パイプラインで実行されます：完全なコンテキスト、拡張注入、メモリ、ツールを含みます。結果は対象メッセージの新規ブランチとして追加され、元の本文は切替可能です。</string>
 </resources>
 

@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.pages.assistant.detail
 
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.AiMagic
 import me.rerere.hugeicons.stroke.BookOpen01
 import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.ArrowRight01
@@ -121,6 +122,14 @@ fun AssistantDetailPage(id: String) {
                         leadingContent = { Icon(HugeIcons.Menu03, null) },
                         supportingContent = { Text(stringResource(R.string.assistant_detail_outline_desc)) },
                         headlineContent = { Text(stringResource(R.string.assistant_outline)) },
+                        trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
+                    )
+                    // 润色设置入口卡片（润色提示词/通用润色指令/专用模型）
+                    item(
+                        onClick = { navController.navigate(Screen.AssistantPolish(id)) },
+                        leadingContent = { Icon(HugeIcons.AiMagic, null) },
+                        supportingContent = { Text(stringResource(R.string.assistant_detail_polish_desc)) },
+                        headlineContent = { Text(stringResource(R.string.assistant_polish)) },
                         trailingContent = { Icon(HugeIcons.ArrowRight01, null) },
                     )
                     item(

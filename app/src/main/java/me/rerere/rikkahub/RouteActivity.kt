@@ -83,6 +83,7 @@ import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantLocalToolPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantMcpPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantMemoryPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantOutlinePage
+import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantPolishPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantPromptPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantRequestPage
 import me.rerere.rikkahub.ui.pages.backup.BackupPage
@@ -372,6 +373,10 @@ class RouteActivity : ComponentActivity() {
                                 AssistantOutlinePage(key.id)
                             }
 
+                            entry<Screen.AssistantPolish> { key ->
+                                AssistantPolishPage(key.id)
+                            }
+
                             entry<Screen.Translator> {
                                 TranslatorPage()
                             }
@@ -598,6 +603,9 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data class AssistantOutline(val id: String) : Screen
+
+    @Serializable
+    data class AssistantPolish(val id: String) : Screen
 
     @Serializable
     data object Translator : Screen
