@@ -120,8 +120,9 @@ fun SettingAboutPage() {
                                 }
                         )
 
+                        // 关于页应用名：与 app_name 保持一致（自构建区分版显示 my-rikkahub）
                         Text(
-                            text = "RikkaHub",
+                            text = "my-rikkahub",
                             style = MaterialTheme.typography.displaySmall,
                         )
                     }
