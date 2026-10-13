@@ -115,6 +115,7 @@ enum class ChatErrorSolution {
 data class OutlineState(
     val rawInput: String = "",          // 生成大纲所用的用户原始输入
     val draft: String = "",             // 流式累积的大纲草稿
+    val reasoning: String = "",         // 流式累积的思维链（模型推理过程，弹窗内展示）
     val isGenerating: Boolean = false,  // 是否正在流式生成
     val error: Throwable? = null,       // 生成失败时的异常
 )
@@ -996,16 +997,25 @@ class ChatService(
                     messages = messages,
                     params = TextGenerationParams(
                         model = model,
-                        reasoningLevel = ReasoningLevel.OFF,
+                        // 思维链：跟随助手聊天的推理等级（与 GenerationHandler 聊天路径一致），
+                        // 助手关闭推理时这里仍为 OFF，行为与旧版逐字节一致
+                        reasoningLevel = assistant.reasoningLevel,
                     ),
                 ).collect { chunk ->
-                    // 只累积文本增量作为草稿（忽略 reasoning 等其它部件）
-                    val text = chunk.choices.firstOrNull()?.delta?.parts
-                        ?.filterIsInstance<UIMessagePart.Text>()
-                        ?.joinToString("") { it.text }
-                        ?: ""
+                    val deltaParts = chunk.choices.firstOrNull()?.delta?.parts ?: emptyList()
+                    // 文本增量 → 草稿
+                    val text = deltaParts
+                        .filterIsInstance<UIMessagePart.Text>()
+                        .joinToString("") { it.text }
                     if (text.isNotEmpty()) {
                         setOutlineState(conversationId) { it.copy(draft = it.draft + text) }
+                    }
+                    // 推理增量 → 思维链（弹窗内以思考卡片流式展示）
+                    val reasoning = deltaParts
+                        .filterIsInstance<UIMessagePart.Reasoning>()
+                        .joinToString("") { it.reasoning }
+                    if (reasoning.isNotEmpty()) {
+                        setOutlineState(conversationId) { it.copy(reasoning = it.reasoning + reasoning) }
                     }
                 }
 

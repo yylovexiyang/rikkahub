@@ -455,6 +455,7 @@ private fun ChatPageContent(
     if (showOutlineSheet) {
         OutlineSheet(
             state = outlineSheetState,
+            assistant = setting.getCurrentAssistant(),
             onDismiss = {
                 // 取消：停止生成、丢弃草稿；输入框原文保留
                 showOutlineSheet = false
