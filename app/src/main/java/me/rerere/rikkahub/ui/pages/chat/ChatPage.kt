@@ -459,10 +459,12 @@ private fun ChatPageContent(
         OutlineSheet(
             state = outlineSheetState,
             assistant = setting.getCurrentAssistant(),
-            onDismiss = {
-                // 取消：停止生成、丢弃草稿；输入框原文保留
+            onDismiss = { latestRawInput ->
+                // 取消：停止生成、丢弃草稿；并把弹窗内编辑后的最新原始输入同步回聊天输入框，
+                // 否则输入框仍是最初触发生成时的文本，下次进入大纲弹窗会丢失编辑后的原文
                 showOutlineSheet = false
                 vm.stopOutlineGeneration()
+                inputState.setMessageText(latestRawInput)
             },
             onRegenerate = { rawInput ->
                 vm.generateOutline(rawInput)

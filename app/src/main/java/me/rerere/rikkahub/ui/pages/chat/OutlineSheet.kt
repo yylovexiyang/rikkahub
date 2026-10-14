@@ -62,7 +62,8 @@ import me.rerere.rikkahub.ui.components.ui.ChainOfThought
 fun OutlineSheet(
     state: OutlineState?,
     assistant: Assistant?, // 当前助手（思维链内容按助手可视化正则渲染）
-    onDismiss: () -> Unit,
+    // 退出弹窗（取消/下滑）时携带原始输入框当前文本，供上层同步回聊天输入框，避免编辑丢失
+    onDismiss: (latestRawInput: String) -> Unit,
     onRegenerate: (rawInput: String) -> Unit,
     onPolish: (opinion: String) -> Unit, // 按意见润色当前草稿（空白走通用润色指令）
     onUndo: () -> Unit,                  // 撤销草稿到上一版本
@@ -111,7 +112,8 @@ fun OutlineSheet(
     }
 
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        // 下滑关闭也算一条退出路径，同样携带原始输入框当前文本回调，防止编辑内容丢失
+        onDismissRequest = { onDismiss(rawInputState.text.toString()) },
         sheetState = sheetState,
         // 关闭弹窗默认 insets，交由内容自行消费 ime/导航栏 insets，避免键盘遮挡输入框与按钮
         // （material3 1.5+ 该参数为 composable lambda 形态，须以 { } 传入而非裸值）
@@ -259,7 +261,8 @@ fun OutlineSheet(
             // 操作行：取消 / 确认生成正文（固定底部，不随内容滚动，始终可见可点）
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(
-                    onClick = { hideThen { onDismiss() } },
+                    // 取消按钮先收起弹窗再回调，带上原始输入框当前文本
+                    onClick = { hideThen { onDismiss(rawInputState.text.toString()) } },
                     modifier = Modifier.weight(1f),
                 ) {
                     Text(stringResource(R.string.cancel))
