@@ -1118,6 +1118,7 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="outline_sheet_retry">재시도</string>
   <string name="outline_sheet_error_prefix">생성 실패:</string>
   <string name="chat_message_view_original_input">원본 입력 보기</string>
+  <string name="chat_message_view_polish_opinion">윤색 지시 보기</string>
   <string name="copied_to_clipboard">클립보드에 복사됨</string>
   <string name="assistant_outline">개요</string>
   <string name="assistant_detail_outline_desc">이 어시스턴트의 개요 우선 생성 흐름</string>

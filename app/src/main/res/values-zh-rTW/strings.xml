@@ -1116,6 +1116,7 @@
   <string name="outline_sheet_retry">重試</string>
   <string name="outline_sheet_error_prefix">產生失敗：</string>
   <string name="chat_message_view_original_input">檢視原始輸入</string>
+  <string name="chat_message_view_polish_opinion">檢視潤色指令</string>
   <string name="copied_to_clipboard">已複製到剪貼簿</string>
   <string name="assistant_outline">大綱</string>
   <string name="assistant_detail_outline_desc">為此助理設定的大綱式產生流程</string>

@@ -1116,6 +1116,7 @@
   <string name="outline_sheet_retry">Retry</string>
   <string name="outline_sheet_error_prefix">Generate failed:</string>
   <string name="chat_message_view_original_input">View original input</string>
+  <string name="chat_message_view_polish_opinion">View polish instruction</string>
   <string name="copied_to_clipboard">Copied to clipboard</string>
   <string name="assistant_outline">Outline</string>
   <string name="assistant_detail_outline_desc">Outline-first generation flow for this assistant</string>

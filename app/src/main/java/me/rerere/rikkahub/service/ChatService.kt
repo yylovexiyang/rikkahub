@@ -90,6 +90,7 @@ import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.web.BadRequestException
 import me.rerere.rikkahub.web.NotFoundException
 import me.rerere.rikkahub.utils.applyPlaceholders
+import me.rerere.rikkahub.utils.attachPolishOpinion
 import me.rerere.rikkahub.utils.sendNotification
 import me.rerere.rikkahub.utils.cancelNotification
 import java.time.Instant
@@ -412,11 +413,16 @@ class ChatService(
 
         val job = appScope.launch {
             try {
+                // 先清理无效消息（未执行的工具调用/空节点）再定位节点，与
+                // handleMessageComplete 内部的 checkInvalidMessages 口径对齐，
+                // 避免其二次过滤改变节点数量导致 messageRange 越界或上下文边界漂移
+                checkInvalidMessages(conversationId)
                 val conversation = session.state.value
 
                 if (message.role == MessageRole.USER) {
-                    // 如果是用户消息，则截止到当前消息
-                    val node = conversation.getMessageNodeByMessage(message)
+                    // 如果是用户消息，则截止到当前消息；
+                    // 定位失败时直接退出，防止 indexOf 返回 -1 导致 subList(0, 0) 清空会话
+                    val node = conversation.getMessageNodeByMessage(message) ?: return@launch
                     val indexAt = conversation.messageNodes.indexOf(node)
                     val newConversation = conversation.copy(
                         messageNodes = conversation.messageNodes.subList(0, indexAt + 1)
@@ -425,7 +431,8 @@ class ChatService(
                     handleMessageComplete(conversationId)
                 } else {
                     if (regenerateAssistantMsg) {
-                        val node = conversation.getMessageNodeByMessage(message)
+                        // 定位失败（目标消息已被无效消息清理移除）时直接退出
+                        val node = conversation.getMessageNodeByMessage(message) ?: return@launch
                         val nodeIndex = conversation.messageNodes.indexOf(node)
                         handleMessageComplete(conversationId, messageRange = 0..<nodeIndex)
                     } else {
@@ -540,10 +547,13 @@ class ChatService(
                     memories = getAssistantMemories(assistant),
                     tools = buildGenerationTools(settings, assistant),
                     processingStatus = session.processingStatus,
-                ).onCompletion {
+                ).onCompletion { cause ->
                     // 与正文生成路径相同的收尾：取消通知 + finishReasoning 兜底更新
                     cancelLiveUpdateNotification(conversationId)
 
+                    // 兜底更新：被取消时也执行（与重新生成被停止的行为一致），
+                    // 保留占位分支中已生成的半截内容并收尾思维链状态；
+                    // 与替代任务的流式写回并发时最多丢一次增量，下一个 chunk 全量写回会自动补齐
                     val updatedConversation = getConversationFlow(conversationId).value.copy(
                         messageNodes = getConversationFlow(conversationId).value.messageNodes.map { node ->
                             node.copy(messages = node.messages.map { it.finishReasoning() })
@@ -552,8 +562,13 @@ class ChatService(
                     )
                     updateConversation(conversationId, updatedConversation)
 
-                    // 应用不在前台时发送完成通知（与正文生成一致）
-                    if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration) {
+                    // 应用不在前台时发送完成通知（与正文生成一致）；
+                    // 仅正常完成时发送——被取消/流式异常时不应向用户提示"生成完成"（异常走 addError 报错）
+                    if (
+                        cause == null &&
+                        !isForeground.value &&
+                        settings.displaySetting.enableNotificationOnMessageGeneration
+                    ) {
                         sendGenerationDoneNotification(conversationId, modelSenderName)
                     }
                 }.collect { chunk ->
@@ -567,6 +582,7 @@ class ChatService(
                                 nodeIndex = nodeIndex,
                                 branchMessageId = polishedMessage.id,
                                 newMessage = polished,
+                                opinion = opinion,
                             )
                         }
                     }
@@ -603,12 +619,15 @@ class ChatService(
     /**
      * 将润色结果写回目标节点的新分支（按分支消息 id 替换，selectIndex 指向该分支）。
      * 每次取最新会话态写回，避免与标题生成等并发更新互相覆盖。
+     *
+     * @param opinion 用户润色意见；附加到产物消息文本部件元数据，仅气泡展示不进入上下文
      */
     private fun writeBackPolishedMessage(
         conversationId: Uuid,
         nodeIndex: Int,
         branchMessageId: Uuid,
         newMessage: UIMessage,
+        opinion: String,
     ) {
         val latest = getConversationFlow(conversationId).value
         val updatedConversation = latest.copy(
@@ -616,8 +635,12 @@ class ChatService(
                 if (index == nodeIndex) {
                     val messages = node.messages.map { message ->
                         if (message.id == branchMessageId) {
-                            // 保留占位消息的分支身份（id），内容/元数据取流式结果
-                            newMessage.copy(id = branchMessageId)
+                            // 保留占位消息的分支身份（id），内容/元数据取流式结果；
+                            // 润色意见随产物持久化（气泡可查看），不作为上下文发送
+                            newMessage.copy(
+                                id = branchMessageId,
+                                parts = newMessage.parts.attachPolishOpinion(opinion),
+                            )
                         } else {
                             message
                         }
@@ -760,11 +783,11 @@ class ChatService(
                 },
                 outputTransformers = outputTransformers,
                 tools = buildGenerationTools(settings, assistant),
-            ).onCompletion {
+            ).onCompletion { cause ->
                 // 取消 Live Update 通知
                 cancelLiveUpdateNotification(conversationId)
 
-                // 可能被取消了，或者意外结束，兜底更新
+                // 可能被取消了，或者意外结束，兜底更新；被取消时保留已生成的半截内容并收尾思维链
                 val updatedConversation = getConversationFlow(conversationId).value.copy(
                     messageNodes = getConversationFlow(conversationId).value.messageNodes.map { node ->
                         node.copy(messages = node.messages.map { it.finishReasoning() })
@@ -774,7 +797,12 @@ class ChatService(
                 updateConversation(conversationId, updatedConversation)
 
                 // Show notification if app is not in foreground
-                if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration) {
+                // 仅正常完成时发送——停止/被替代/异常结束不应向用户提示"生成完成"
+                if (
+                    cause == null &&
+                    !isForeground.value &&
+                    settings.displaySetting.enableNotificationOnMessageGeneration
+                ) {
                     sendGenerationDoneNotification(conversationId, senderName)
                 }
             }.collect { chunk ->

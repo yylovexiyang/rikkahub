@@ -1118,6 +1118,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="outline_sheet_retry">重试</string>
   <string name="outline_sheet_error_prefix">生成失败：</string>
   <string name="chat_message_view_original_input">查看原始输入</string>
+  <string name="chat_message_view_polish_opinion">查看润色指令</string>
   <string name="copied_to_clipboard">已复制到剪贴板</string>
   <string name="assistant_outline">大纲</string>
   <string name="assistant_detail_outline_desc">面向该助手的大纲式生成流程</string>

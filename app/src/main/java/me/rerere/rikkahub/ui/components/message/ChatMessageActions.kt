@@ -64,6 +64,7 @@ import me.rerere.rikkahub.ui.context.LocalTTSState
 import me.rerere.rikkahub.utils.copyMessageToClipboard
 import me.rerere.rikkahub.utils.extractQuotedContentAsText
 import me.rerere.rikkahub.utils.readOutlineOriginalInput
+import me.rerere.rikkahub.utils.readPolishOpinion
 import me.rerere.rikkahub.utils.toLocalString
 import java.util.Locale
 
@@ -84,6 +85,12 @@ fun ColumnScope.ChatMessageActionButtons(
     var showRegenerateConfirm by remember { mutableStateOf(false) }
     // 润色意见输入框显隐（润色产物为新分支，与重新生成一致）
     var showPolishDialog by remember { mutableStateOf(false) }
+    // 润色产物查看意见对话框显隐（意见保留在产物消息文本部件元数据，仅气泡展示不进入上下文）
+    var showPolishOpinionDialog by remember { mutableStateOf(false) }
+    // 读取产物消息上保留的润色意见；无记录（非润色产物/空白意见）时不显示入口
+    val polishOpinion = message.parts
+        .filterIsInstance<UIMessagePart.Text>()
+        .firstNotNullOfOrNull { it.readPolishOpinion() }
 
     LaunchedEffect(isPendingDelete) {
         if (isPendingDelete) {
@@ -220,6 +227,20 @@ fun ColumnScope.ChatMessageActionButtons(
                     .size(16.dp),
                 tint = actionIconColor
             )
+
+            // 润色产物查看意见入口：展示发起该分支润色时用户填写的意见（与大纲原始输入同机制）
+            if (polishOpinion != null) {
+                Icon(
+                    imageVector = HugeIcons.Clipboard,
+                    contentDescription = stringResource(R.string.chat_message_view_polish_opinion),
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable { showPolishOpinionDialog = true }
+                        .padding(8.dp)
+                        .size(16.dp),
+                    tint = actionIconColor
+                )
+            }
         }
 
         Icon(
@@ -284,6 +305,15 @@ fun ColumnScope.ChatMessageActionButtons(
                 showPolishDialog = false
                 onPolish(message, opinion)
             }
+        )
+    }
+
+    // 润色产物查看意见对话框：展示发起该分支润色时的用户意见（元数据随消息持久化，不进入上下文）
+    if (showPolishOpinionDialog && polishOpinion != null) {
+        OriginalInputDialog(
+            text = polishOpinion,
+            title = stringResource(R.string.chat_message_view_polish_opinion),
+            onDismiss = { showPolishOpinionDialog = false },
         )
     }
 }

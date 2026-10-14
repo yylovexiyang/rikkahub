@@ -17,15 +17,19 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.context.LocalToaster
 
 /**
- * 查看大纲消息原始输入的对话框（支持复制）
+ * 查看消息保留的原始内容对话框（支持复制）
  *
- * @param text 要展示的原始输入文本
+ * 大纲消息展示原始输入，润色产物展示润色意见；内容存于文本部件元数据，仅供查看不进入上下文
+ *
+ * @param text 要展示的文本
+ * @param title 弹窗标题；默认沿用大纲原始输入文案，润色意见入口传入专用标题
  * @param onDismiss 关闭对话框回调
  */
 @Composable
 fun OriginalInputDialog(
     text: String,
     onDismiss: () -> Unit,
+    title: String = stringResource(R.string.chat_message_view_original_input),
 ) {
     val clipboard = LocalClipboard.current
     val toaster = LocalToaster.current
@@ -34,7 +38,7 @@ fun OriginalInputDialog(
     val copiedText = stringResource(R.string.copied_to_clipboard)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.chat_message_view_original_input)) },
+        title = { Text(title) },
         text = {
             Text(
                 text = text,

@@ -1118,6 +1118,7 @@
   <string name="outline_sheet_retry">Повторить</string>
   <string name="outline_sheet_error_prefix">Ошибка генерации:</string>
   <string name="chat_message_view_original_input">Показать исходный запрос</string>
+  <string name="chat_message_view_polish_opinion">Показать инструкцию для полировки</string>
   <string name="copied_to_clipboard">Скопировано в буфер обмена</string>
   <string name="assistant_outline">План</string>
   <string name="assistant_detail_outline_desc">Генерация через план для этого ассистента</string>

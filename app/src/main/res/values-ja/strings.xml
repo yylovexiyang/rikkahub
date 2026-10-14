@@ -1118,6 +1118,7 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="outline_sheet_retry">再試行</string>
   <string name="outline_sheet_error_prefix">生成失敗：</string>
   <string name="chat_message_view_original_input">元の入力を表示</string>
+  <string name="chat_message_view_polish_opinion">潤色指示を表示</string>
   <string name="copied_to_clipboard">クリップボードにコピーしました</string>
   <string name="assistant_outline">アウトライン</string>
   <string name="assistant_detail_outline_desc">このアシスタントのアウトライン先行生成フロー</string>
